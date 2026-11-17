@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, Database, KeyRound, Loader2, ShieldCheck, Sparkles, User } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, Database, Download, FileText, KeyRound, Loader2, LogOut, ShieldCheck, Sparkles, User } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
 import { Card, CardHeader, ConfirmDialog, PageHeader, Segmented } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
@@ -9,7 +10,7 @@ import { useApi } from '../hooks/useApi'
 
 export default function SettingsPage() {
   const toast = useToast()
-  const { user, setUser, logout } = useAuth()
+  const { user, setUser, logout, setToken } = useAuth()
   const { dataChanged, version } = useFilters()
   const summary = useApi('/settings/data-summary', null, [version])
   const [profile, setProfile] = useState({ full_name: '', anomaly_sensitivity: 'medium', threshold: '' })
@@ -39,9 +40,10 @@ export default function SettingsPage() {
 
   const changePassword = () => run('pw', async () => {
     if (pw.new_password !== pw.confirm) throw { response: { data: { error: { message: 'New passwords do not match' } } } }
-    await api.post('/settings/password', { current_password: pw.current_password, new_password: pw.new_password })
+    const r = await api.post('/settings/password', { current_password: pw.current_password, new_password: pw.new_password })
+    setToken(r.data.access_token) // other devices were signed out; this one stays signed in
     setPw({ current_password: '', new_password: '', confirm: '' })
-    toast.success('Password changed')
+    toast.success('Password changed. Other devices have been signed out.')
   })
 
   const demo = (load) => run('demo', async () => {
@@ -54,6 +56,20 @@ export default function SettingsPage() {
       toast.success(`${r.data.deleted_transactions} demo transactions removed`)
     }
     dataChanged()
+  })
+
+  const exportData = () => run('export', async () => {
+    const r = await api.get('/settings/export', { responseType: 'blob' })
+    const url = URL.createObjectURL(r.data)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'tally-my-data.json'; a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Your data export has been downloaded')
+  })
+
+  const logoutAll = () => run('logoutall', async () => {
+    await api.post('/auth/logout-all')
+    logout()
   })
 
   const doConfirm = () => run('confirm', async () => {
@@ -89,6 +105,9 @@ export default function SettingsPage() {
               <p className="mt-1.5 text-xs text-ink-muted">Always flag debits at or above this amount. Leave empty to turn off.</p>
             </div>
             <p className="text-xs text-ink-muted">Currency: Indian Rupee (₹) · Time zone: Asia/Kolkata</p>
+            <p className="flex flex-wrap items-center gap-1.5 text-xs text-ink-muted"><FileText className="h-3.5 w-3.5" />
+              {user?.consent?.accepted_at ? <span>You accepted the Terms & Privacy Policy (version {user.consent.terms_version}) on {new Date(user.consent.accepted_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })}.</span> : null}
+              <Link to="/privacy" className="font-semibold text-brand-600 hover:underline">Privacy Policy</Link>·<Link to="/terms" className="font-semibold text-brand-600 hover:underline">Terms</Link></p>
             <button className="btn-primary" onClick={saveProfile} disabled={busy === 'profile' || !profile.full_name.trim()}>{busy === 'profile' && <Loader2 className="h-4 w-4 animate-spin" />}Save changes</button>
           </div>
         </Card>
@@ -100,6 +119,10 @@ export default function SettingsPage() {
             <div><label className="label" htmlFor="pw-n">New password</label><input id="pw-n" type="password" autoComplete="new-password" minLength={8} maxLength={72} className="input" value={pw.new_password} onChange={(e) => setPw({ ...pw, new_password: e.target.value })} /></div>
             <div><label className="label" htmlFor="pw-r">Confirm new password</label><input id="pw-r" type="password" autoComplete="new-password" className="input" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></div>
             <button className="btn-primary" onClick={changePassword} disabled={busy === 'pw' || !pw.current_password || pw.new_password.length < 8}>{busy === 'pw' && <Loader2 className="h-4 w-4 animate-spin" />}Update password</button>
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+            <div><p className="text-sm font-semibold text-ink">Sign out everywhere</p><p className="text-xs text-ink-muted">Ends every session on every device, including this one.</p></div>
+            <button className="btn-secondary" onClick={logoutAll} disabled={busy === 'logoutall'}>{busy === 'logoutall' ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}Sign out everywhere</button>
           </div>
           <div className="mt-6 flex gap-3 rounded-xl bg-brand-50/70 p-4 text-sm text-ink-soft">
             <ShieldCheck className="h-5 w-5 shrink-0 text-brand-600" />
@@ -125,6 +148,10 @@ export default function SettingsPage() {
               ))}
             </dl>
           )}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-canvas p-4">
+            <div><p className="text-sm font-semibold text-ink">Download my data</p><p className="text-xs text-ink-muted">A complete copy of your profile, statements, transactions, categories and rules (JSON).</p></div>
+            <button className="btn-secondary" onClick={exportData} disabled={busy === 'export'}>{busy === 'export' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}Download</button>
+          </div>
           <div className="space-y-3 rounded-xl border border-danger-100 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><p className="text-sm font-semibold text-ink">Delete all statements & transactions</p><p className="text-xs text-ink-muted">Keeps your account, categories and rules.</p></div>

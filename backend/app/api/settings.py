@@ -1,14 +1,20 @@
+import json
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi.responses import Response
 
-from app.api.deps import current_user, db_dep
+from app.api.deps import current_user, db_dep, verified_user
+from app.core.config import get_settings
 from app.core.errors import AppError
-from app.core.security import hash_password, verify_password
-from app.database.mongo import (ANOMALY_REVIEWS, CATEGORIES, CATEGORIZATION_RULES, RAW_TRANSACTIONS,
+from app.core.ratelimit import limit
+from app.core.security import hash_password, session_token, verify_password
+from app.database.mongo import (ANOMALY_REVIEWS, AUTH_TOKENS, CATEGORIES, CATEGORIZATION_RULES, RAW_TRANSACTIONS,
                                 SPENDING_SUMMARIES, STAGED_TRANSACTIONS, STATEMENT_UPLOADS, USERS)
 from app.schemas.requests import PasswordChange, ProfileUpdate
+from app.services.email import password_changed_email, send_email
 from app.services.statements import confirm_import, create_preview, delete_statement
+from app.utils.dates import utcnow
 from app.utils.serialize import to_json
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -34,11 +40,21 @@ async def update_profile(body: ProfileUpdate, user=Depends(current_user), db=Dep
 
 
 @router.post("/password")
-async def change_password(body: PasswordChange, user=Depends(current_user), db=Depends(db_dep)):
+async def change_password(body: PasswordChange, background: BackgroundTasks, user=Depends(current_user),
+                          db=Depends(db_dep)):
+    """Changes the password and signs out every OTHER session; returns a fresh token for this one."""
+    await limit(db, "change-password:user", str(user["_id"]), 10, 3600)
     if not verify_password(body.current_password, user["password_hash"]):
         raise AppError("Current password is incorrect", 400, "invalid_password")
-    await db[USERS].update_one({"_id": user["_id"]}, {"$set": {"password_hash": hash_password(body.new_password)}})
-    return {"ok": True}
+    await db[USERS].update_one({"_id": user["_id"]}, {
+        "$set": {"password_hash": hash_password(body.new_password), "password_changed_at": utcnow()},
+        "$inc": {"token_version": 1},
+    })
+    await db[AUTH_TOKENS].delete_many({"user_id": user["_id"], "purpose": "password_reset"})
+    fresh = await db[USERS].find_one({"_id": user["_id"]})
+    background.add_task(send_email, password_changed_email(
+        user["email"], user["full_name"], f"{get_settings().frontend_url.rstrip('/')}/forgot-password"))
+    return {"ok": True, "access_token": session_token(fresh)}
 
 
 @router.get("/data-summary")
@@ -55,8 +71,9 @@ async def data_summary(user=Depends(current_user), db=Depends(db_dep)):
 
 
 @router.post("/demo-data")
-async def load_demo_data(user=Depends(current_user), db=Depends(db_dep)):
+async def load_demo_data(user=Depends(verified_user), db=Depends(db_dep)):
     """Optional demo mode: imports bundled SYNTHETIC statements through the real pipeline."""
+    await limit(db, "demo:user", str(user["_id"]), 10, 3600)
     imported = []
     for name in DEMO_FILES:
         path = SAMPLE_DIR / name
@@ -87,6 +104,33 @@ async def _wipe(db, uid, keep_setup: bool):
     if not keep_setup:
         await db[CATEGORIZATION_RULES].delete_many({"user_id": uid})
         await db[CATEGORIES].delete_many({"user_id": uid})
+        await db[AUTH_TOKENS].delete_many({"user_id": uid})
+
+
+@router.get("/export")
+async def export_my_data(user=Depends(current_user), db=Depends(db_dep)):
+    """Right of access (DPDP Act): a complete machine-readable copy of everything stored about the user."""
+    await limit(db, "export:user", str(user["_id"]), 10, 3600)
+    uid = user["_id"]
+
+    async def all_of(coll, projection=None):
+        return to_json(await db[coll].find({"user_id": uid}, projection).to_list(None))
+
+    profile = to_json(user)
+    profile.pop("token_version", None)
+    data = {
+        "exported_at": utcnow().isoformat() + "Z",
+        "about": "Export of all personal data Tally stores for your account. Uploaded files themselves are never stored.",
+        "profile": profile,
+        "statements": await all_of(STATEMENT_UPLOADS),
+        "transactions": await all_of(RAW_TRANSACTIONS),
+        "categories": await all_of(CATEGORIES),
+        "categorization_rules": await all_of(CATEGORIZATION_RULES),
+        "anomaly_reviews": await all_of(ANOMALY_REVIEWS),
+        "monthly_summaries": await all_of(SPENDING_SUMMARIES),
+    }
+    return Response(json.dumps(data, ensure_ascii=False, indent=2, default=str), media_type="application/json",
+                    headers={"Content-Disposition": "attachment; filename=tally-my-data.json"})
 
 
 @router.delete("/data")

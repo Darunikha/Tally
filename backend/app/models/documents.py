@@ -15,14 +15,21 @@ from app.utils.dates import utcnow
 UPLOAD_STATUSES = ("processing", "pending_review", "completed", "failed", "deleting")
 
 
-def user_doc(email: str, full_name: str, password_hash: str) -> dict:
+def user_doc(email: str, full_name: str, password_hash: str, legal_version: str | None = None) -> dict:
+    now = utcnow()
     return {
         "_id": ObjectId(),
         "email": email.lower(),
         "full_name": full_name,
         "password_hash": password_hash,
+        "email_verified": False,
+        "email_verified_at": None,
+        "token_version": 0,  # bumped to revoke all sessions (password change/reset, sign out everywhere)
+        "password_changed_at": now,
+        # DPDP Act: record of the consent given at signup (which policy version, when)
+        "consent": {"terms_version": legal_version, "privacy_version": legal_version, "accepted_at": now},
         "settings": {"anomaly_sensitivity": "medium", "large_transaction_threshold": None},
-        "created_at": utcnow(),
+        "created_at": now,
     }
 
 

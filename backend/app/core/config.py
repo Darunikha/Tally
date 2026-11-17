@@ -25,6 +25,36 @@ class Settings(BaseSettings):
     upload_tmp_dir: str = ""  # empty -> OS temp dir
     timezone: str = "Asia/Kolkata"
 
+    # Public URL of the frontend - used to build links in emails (reset password, verify email).
+    frontend_url: str = "http://localhost:5173"
+
+    # Email delivery: "console" (dev: prints to the server console), "resend", "smtp", or "memory" (tests).
+    email_provider: str = "console"
+    email_from: str = "Tally <no-reply@example.com>"
+    resend_api_key: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_starttls: bool = True
+
+    # Require a verified email before statements can be uploaded (recommended in production).
+    require_email_verification: bool = False
+    password_reset_minutes: int = 30
+    email_verify_hours: int = 48
+
+    # Rate limiting (stored in MongoDB so limits hold across server instances).
+    rate_limit_enabled: bool = True
+    # Behind a reverse proxy (Render, Nginx...) set true so the client IP comes from X-Forwarded-For.
+    trust_proxy_headers: bool = False
+
+    # Bump when the Privacy Policy / Terms change materially; stored with each user's consent.
+    legal_version: str = "2026-11-17"
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() in ("production", "prod")
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

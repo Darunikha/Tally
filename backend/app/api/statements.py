@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 
-from app.api.deps import current_user, db_dep
+from app.api.deps import current_user, db_dep, verified_user
+from app.core.ratelimit import limit as rate_limit
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.database.mongo import STAGED_TRANSACTIONS, STATEMENT_UPLOADS
@@ -32,8 +33,9 @@ async def supported_banks(_=Depends(current_user)):
 @router.post("/preview", status_code=201)
 async def preview(file: UploadFile = File(...), bank: str | None = Form(default=None),
                   password: str | None = Form(default=None, max_length=128),
-                  user=Depends(current_user), db=Depends(db_dep)):
+                  user=Depends(verified_user), db=Depends(db_dep)):
     """Parse a CSV / PDF / Excel statement into a preview. `password` unlocks encrypted PDFs (never stored)."""
+    await rate_limit(db, "upload:user", str(user["_id"]), 60, 3600)
     limit = get_settings().max_upload_bytes
     try:
         content = await file.read(limit + 1)  # bounded read
@@ -69,7 +71,7 @@ async def staged(upload_id: str, page: int = Query(1, ge=1), page_size: int = Qu
 
 
 @router.post("/{upload_id}/confirm")
-async def confirm(upload_id: str, body: ConfirmImport | None = None, user=Depends(current_user), db=Depends(db_dep)):
+async def confirm(upload_id: str, body: ConfirmImport | None = None, user=Depends(verified_user), db=Depends(db_dep)):
     up = await svc.confirm_import(db, user["_id"], oid(upload_id), (body or ConfirmImport()).include_duplicates)
     return to_json(up)
 

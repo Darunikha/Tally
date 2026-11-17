@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { AlertTriangle, Bell, ChevronDown, LogOut, Menu, Search, Settings } from 'lucide-react'
-import { api } from '../../api/client'
+import { AlertTriangle, Bell, ChevronDown, Loader2, LogOut, MailWarning, Menu, Search, Settings, X } from 'lucide-react'
+import { api, errorMessage } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { useFilters } from '../../context/FilterContext'
 import { formatDate, formatINR, initials } from '../../lib/format'
@@ -45,6 +45,24 @@ function Notifications({ data }) {
           <Link to="/anomalies" onClick={() => setOpen(false)} className="mt-1 block rounded-xl px-3 py-2 text-center text-sm font-semibold text-brand-600 hover:bg-brand-50">View all anomalies</Link>
         </div>
       )}
+    </div>
+  )
+}
+
+function VerifyBanner() {
+  const { user } = useAuth()
+  const [state, setState] = useState({ busy: false, msg: '', hidden: false })
+  if (!user || user.email_verified || state.hidden) return null
+  const resend = async () => {
+    setState((s) => ({ ...s, busy: true }))
+    try { setState({ busy: false, msg: (await api.post('/auth/resend-verification')).data.message, hidden: false }) } catch (e) { setState({ busy: false, msg: errorMessage(e), hidden: false }) }
+  }
+  return (
+    <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-warn-100 bg-warn-50 px-4 py-3 text-sm" role="status">
+      <MailWarning className="h-5 w-5 shrink-0 text-warn-500" />
+      <p className="min-w-0 flex-1 text-ink-soft">{state.msg || <>Please verify your email address - we sent a link to <b className="text-ink">{user.email}</b>.</>}</p>
+      <button className="btn-secondary btn-sm" onClick={resend} disabled={state.busy}>{state.busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Resend link</button>
+      <button className="rounded-lg p-1 text-ink-faint hover:bg-white hover:text-ink" onClick={() => setState((s) => ({ ...s, hidden: true }))} aria-label="Dismiss"><X className="h-4 w-4" /></button>
     </div>
   )
 }
@@ -115,6 +133,7 @@ export default function AppLayout() {
           </div>
         </header>
         <main className="mx-auto min-w-0 max-w-[1400px] px-4 pb-16 pt-2 sm:px-6 lg:px-8">
+          <VerifyBanner />
           <Outlet />
         </main>
       </div>

@@ -3,6 +3,8 @@ from pathlib import Path
 
 os.environ.setdefault("JWT_SECRET", "test-secret-" + "x" * 40)
 os.environ["MONGODB_URL"] = "mongomock://"
+os.environ["EMAIL_PROVIDER"] = "memory"
+os.environ["FRONTEND_URL"] = "http://app.test"
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -17,6 +19,14 @@ SAMPLES = Path(__file__).resolve().parents[1] / "sample_data"
 @pytest.fixture
 def sample():
     return lambda name: (SAMPLES / name).read_bytes()
+
+
+@pytest.fixture(autouse=True)
+def _clear_outbox():
+    from app.services.email import OUTBOX
+    OUTBOX.clear()
+    yield
+    OUTBOX.clear()
 
 
 @pytest.fixture
@@ -37,7 +47,8 @@ async def client(db):
 
 
 async def register(client, email="demo@example.com", password="secret123", name="Demo"):
-    r = await client.post("/api/auth/register", json={"email": email, "password": password, "full_name": name})
+    r = await client.post("/api/auth/register", json={"email": email, "password": password, "full_name": name,
+                                                       "accept_terms": True})
     assert r.status_code == 201, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 

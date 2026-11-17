@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import {
   AlertTriangle, BarChart3, CloudUpload, History, House, List, Settings, Tags, X, Zap,
 } from 'lucide-react'
@@ -52,6 +52,7 @@ function SidebarFooter() {
     <div className="relative mt-auto overflow-hidden rounded-2xl bg-gradient-to-br from-brand-50 to-white p-4 ring-1 ring-brand-100">
       <p className="text-sm font-bold text-ink">Spend smarter</p>
       <p className="mt-1 text-xs leading-relaxed text-ink-muted">Your statements are parsed on this server only - never shared with third parties.</p>
+      <p className="relative z-10 mt-2 text-xs"><Link to="/privacy" className="font-semibold text-brand-700 hover:underline">Privacy</Link><span className="mx-1.5 text-ink-faint">·</span><Link to="/terms" className="font-semibold text-brand-700 hover:underline">Terms</Link></p>
       <svg viewBox="0 0 80 80" className="absolute -bottom-3 -right-3 h-16 w-16 opacity-25" aria-hidden="true">
         <path d="M10 70C10 35 35 12 70 10c0 35-22 60-58 60H10Z" fill="#2F7D55" />
       </svg>

@@ -5,7 +5,8 @@ import { useAuth } from './context/AuthContext'
 import { FilterProvider } from './context/FilterContext'
 import Analytics from './pages/Analytics'
 import Anomalies from './pages/Anomalies'
-import { Login, Register } from './pages/Auth'
+import { ForgotPassword, Login, Register, ResetPassword, VerifyEmail } from './pages/Auth'
+import { PrivacyPolicy, Terms } from './pages/Legal'
 import CategoriesRules from './pages/CategoriesRules'
 import Dashboard from './pages/Dashboard'
 import SettingsPage from './pages/Settings'
@@ -32,6 +33,11 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+      <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route element={<Protected><AppLayout /></Protected>}>
         <Route index element={<Dashboard />} />
         <Route path="upload" element={<Upload />} />

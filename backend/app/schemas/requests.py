@@ -6,17 +6,48 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 HEX_COLOR = r"^#[0-9A-Fa-f]{6}$"
 
 
+def _strong_password(v: str) -> str:
+    if not any(c.isdigit() for c in v) or not any(c.isalpha() for c in v):
+        raise ValueError("Password must contain letters and numbers")
+    return v
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=8, max_length=72)
+    # explicit consent to the Terms & Privacy Policy (DPDP Act); validated even when omitted
+    accept_terms: bool = Field(default=False, validate_default=True)
 
     @field_validator("password")
     @classmethod
     def strong_enough(cls, v: str) -> str:
-        if not any(c.isdigit() for c in v) or not any(c.isalpha() for c in v):
-            raise ValueError("Password must contain letters and numbers")
+        return _strong_password(v)
+
+    @field_validator("accept_terms")
+    @classmethod
+    def must_accept(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError("You must accept the Terms of Service and Privacy Policy")
         return v
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def strong_enough(cls, v: str) -> str:
+        return _strong_password(v)
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
 
 
 class LoginRequest(BaseModel):
@@ -38,7 +69,7 @@ class PasswordChange(BaseModel):
     @field_validator("new_password")
     @classmethod
     def strong_enough(cls, v: str) -> str:
-        return RegisterRequest.strong_enough(v)
+        return _strong_password(v)
 
 
 class TransactionUpdate(BaseModel):

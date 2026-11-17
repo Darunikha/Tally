@@ -62,13 +62,14 @@ cd backend
 python -m pytest
 ```
 
-There are 135 tests covering:
+There are 150 tests covering:
 * CSV, Excel (.xlsx, .xls, HTML-.xls) and PDF parsing, incl. RC4/AES password-protected PDFs, and bank recognition
 * Running-balance reconciliation for each bank
 * Transaction, UPI and merchant normalization
 * Regex categorization, priorities and manual overrides
 * Duplicate detection, anomaly rules and analytics math
 * The full API: auth, uploads, filters, rules, deletion and per-user isolation
+* Password reset, email verification, session revocation, rate limits and data export
 
 ### Windows note
 
@@ -124,7 +125,7 @@ upload → validate (extension, size, magic bytes) → read table (CSV / PDF tab
        → fingerprint & flag duplicates → STAGED preview
 confirm → insert into raw_transactions (duplicates skipped) → refresh spending_summaries
 ```
-* Files are processed **in memory** and never written to disk or the database (`file_retained: false`).
+* Uploaded files are **never kept** (`file_retained: false`). They are processed in memory; uploads over 1 MB are briefly spooled to an OS temp file by the web framework, which is deleted when the request ends.
 * Nothing is imported until you confirm. Re-uploading an identical file is rejected. Overlapping
   statements are imported without double counting, using per-transaction fingerprints:
   date + amounts + normalized narration + balance, plus an occurrence counter for legitimately identical rows.
@@ -201,6 +202,46 @@ Dates are statement calendar dates in Asia/Kolkata, stored as midnight with no U
 in ₹ with Indian digit grouping.
 
 ---
+
+## Accounts, email & legal
+
+**Email** is used for verification links, password-reset links and "password changed" alerts. Set `EMAIL_PROVIDER` in `backend/.env`:
+
+| Provider | Use for | Settings |
+|----------|---------|----------|
+| `console` | Local development. Emails, including their links, are printed in the backend terminal. Never sends in production. | none |
+| `resend` | Production (resend.com has a free tier) | `RESEND_API_KEY`, and `EMAIL_FROM` on a domain you've verified with Resend |
+| `smtp` | Any mail server (Gmail app password, Zoho, Amazon SES…) | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` |
+
+Also set `FRONTEND_URL` to your website's address so the links in emails point to the right place.
+
+**How it works:**
+* **Forgot password.** The user gets a one-time link that expires in 30 minutes. The response never reveals whether an email is registered.
+  Only a SHA-256 hash of each link token is stored. Resetting the password signs the account out on every device.
+* **Email verification.** A link is sent at signup, and the app shows a banner until the email is verified.
+  Set `REQUIRE_EMAIL_VERIFICATION=true` to block uploads until the email is verified (recommended in production).
+* **Sessions.** Changing your password signs out all other devices. Settings also has "Sign out everywhere".
+* **Rate limits.** Counters are stored in MongoDB (hashed keys, auto-expiring), so they work across server instances:
+
+  | Action | Limit |
+  |---|---|
+  | Login | 20 per 15 min per IP, and 8 per 15 min per email |
+  | Signup | 5 per hour per IP |
+  | Forgot password | 3 per hour per email |
+  | Uploads | 60 per hour per user |
+
+  When a limit is hit, the API returns HTTP 429 with a `Retry-After` header. Behind a proxy (Render, Nginx), set `TRUST_PROXY_HEADERS=true` so the real client IP is used.
+
+**Privacy Policy & Terms** are at `/privacy` and `/terms`. They're written around India's Digital Personal Data Protection Act, 2023:
+notice, purpose, consent, user rights, a Grievance Officer, and the Data Protection Board.
+
+* **Consent.** Signup requires ticking the consent box. The version accepted and the time are stored with the user.
+* **Your rights in the app.** "Download my data" in Settings gives a full JSON export (right of access), and deleting your account covers erasure and withdrawal of consent.
+
+⚠️ **Before going public:**
+1. Fill in your details in `frontend/src/legal/config.js`. Until you do, the pages show a visible "template" notice.
+2. Have the text reviewed by a lawyer.
+3. When you change the text, bump `LEGAL_VERSION` in `backend/.env` and `version` in `config.js`.
 
 ## Security & privacy
 

@@ -28,6 +28,9 @@ export function AuthProvider({ children }) {
     loading,
     setUser,
     logout,
+    /** Replace the session token (after a password change the server issues a new one). */
+    setToken: (t) => tokenStore.set(t),
+    refreshUser: async () => { if (tokenStore.get()) setUser((await api.get('/auth/me')).data) },
     login: async (email, password) => startSession((await api.post('/auth/login', { email, password })).data),
     register: async (payload) => startSession((await api.post('/auth/register', payload)).data),
   }), [user, loading, logout])

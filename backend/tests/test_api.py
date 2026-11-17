@@ -16,10 +16,12 @@ async def import_file(client, auth, content, name="hdfc_statement.csv"):
 
 
 async def test_auth_flow(client):
-    r = await client.post("/api/auth/register", json={"email": "a@b.com", "password": "short", "full_name": "A"})
+    r = await client.post("/api/auth/register", json={"email": "a@b.com", "password": "short", "full_name": "A",
+                                                       "accept_terms": True})
     assert r.status_code == 422 and r.json()["error"]["code"] == "validation_error"
     headers = await register(client, "a@b.com")
-    r = await client.post("/api/auth/register", json={"email": "a@b.com", "password": "secret123", "full_name": "A"})
+    r = await client.post("/api/auth/register", json={"email": "a@b.com", "password": "secret123", "full_name": "A",
+                                                       "accept_terms": True})
     assert r.status_code == 409
     assert (await client.post("/api/auth/login", json={"email": "a@b.com", "password": "wrong123"})).status_code == 401
     r = await client.post("/api/auth/login", json={"email": "A@B.com", "password": "secret123"})
@@ -226,8 +228,11 @@ async def test_settings_demo_and_wipe(client, auth):
     assert prof["settings"]["anomaly_sensitivity"] == "high" and prof["full_name"] == "Dee"
     assert (await client.post("/api/settings/password", headers=auth,
                               json={"current_password": "nope", "new_password": "newpass123"})).status_code == 400
-    assert (await client.post("/api/settings/password", headers=auth,
-                              json={"current_password": "secret123", "new_password": "newpass123"})).status_code == 200
+    r = await client.post("/api/settings/password", headers=auth,
+                          json={"current_password": "secret123", "new_password": "newpass123"})
+    assert r.status_code == 200
+    assert (await client.get("/api/transactions", headers=auth)).status_code == 401  # old session revoked
+    auth = {"Authorization": f"Bearer {r.json()['access_token']}"}  # this device stays signed in
     await client.delete("/api/settings/demo-data", headers=auth)
     assert (await client.get("/api/transactions", headers=auth)).json()["total"] == 0
 

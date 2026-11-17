@@ -9,12 +9,14 @@ log = logging.getLogger("tally.errors")
 
 
 class AppError(Exception):
-    def __init__(self, message: str, status_code: int = 400, code: str = "bad_request", details=None):
+    def __init__(self, message: str, status_code: int = 400, code: str = "bad_request", details=None,
+                 headers: dict | None = None):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
         self.code = code
         self.details = details
+        self.headers = headers
 
 
 def _body(code: str, message: str, details=None) -> dict:
@@ -24,7 +26,8 @@ def _body(code: str, message: str, details=None) -> dict:
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError):
-        return JSONResponse(status_code=exc.status_code, content=_body(exc.code, exc.message, exc.details))
+        return JSONResponse(status_code=exc.status_code, content=_body(exc.code, exc.message, exc.details),
+                            headers=exc.headers)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_error(_: Request, exc: StarletteHTTPException):

@@ -6,7 +6,8 @@
   delete:   upload marked 'deleting' -> its transactions removed -> upload removed -> summaries refreshed
             (idempotent: safe to retry if interrupted)
 
-Uploaded file bytes are processed in memory only and are never written to disk or the database.
+Uploaded files are never kept: bytes are processed in memory (the framework may spool uploads over 1 MB to a
+temp file, which is closed and deleted immediately) and never saved to the database.
 """
 from __future__ import annotations
 

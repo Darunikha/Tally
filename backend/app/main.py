@@ -16,7 +16,21 @@ log = logging.getLogger("tally")
 
 
 @asynccontextmanager
+def _warn_insecure_config() -> None:
+    s = get_settings()
+    from app.services.email import email_configured
+    if s.is_production:
+        if s.email_provider in ("console", "memory") or not email_configured():
+            log.warning("Email is not configured (EMAIL_PROVIDER=%s): password reset and verification emails "
+                        "will not be delivered", s.email_provider)
+        if not s.rate_limit_enabled:
+            log.warning("RATE_LIMIT_ENABLED is false in production")
+        if s.mongodb_url.startswith("mongomock"):
+            log.warning("Using the in-memory database in production - all data is lost on restart")
+
+
 async def lifespan(_: FastAPI):
+    _warn_insecure_config()
     db = await mongo.connect()
     await resume_interrupted_deletions(db)
     yield
