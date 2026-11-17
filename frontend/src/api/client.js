@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const TOKEN_KEY = 'spendly_token'
+const TOKEN_KEY = 'tally_token'
 
 export const tokenStore = {
   get: () => { try { return sessionStorage.getItem(TOKEN_KEY) } catch { return null } },

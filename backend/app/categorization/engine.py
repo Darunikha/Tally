@@ -12,7 +12,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-log = logging.getLogger("spendly.categorization")
+log = logging.getLogger("tally.categorization")
 
 MAX_PATTERN_LEN = 300
 # crude guard against catastrophic backtracking patterns such as (a+)+ or (\w*)*

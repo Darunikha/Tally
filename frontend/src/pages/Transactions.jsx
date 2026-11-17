@@ -72,7 +72,7 @@ export default function Transactions() {
       const r = await api.get('/transactions/export', { params: cleanParams(f), responseType: 'blob' })
       const url = URL.createObjectURL(r.data)
       const a = document.createElement('a')
-      a.href = url; a.download = 'spendly-transactions.csv'; a.click()
+      a.href = url; a.download = 'tally-transactions.csv'; a.click()
       URL.revokeObjectURL(url)
     } catch (e) { toast.error(errorMessage(e, 'Export failed')) }
   }

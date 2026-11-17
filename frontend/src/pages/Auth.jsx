@@ -12,11 +12,11 @@ function Shell({ title, subtitle, children, footer }) {
         <div className="absolute inset-0 bg-[radial-gradient(40rem_25rem_at_0%_0%,rgba(140,197,162,0.35),transparent),radial-gradient(30rem_20rem_at_100%_100%,rgba(61,90,128,0.5),transparent)]" />
         <div className="relative flex items-center gap-2.5">
           <svg viewBox="0 0 32 32" className="h-9 w-9"><path d="M6 26C6 13 15 6 27 5c0 13-8 21-20 21H6Z" fill="#8CC5A2" /><path d="M7 25 18 14" stroke="#173F2B" strokeWidth="2" strokeLinecap="round" /></svg>
-          <span className="text-2xl font-extrabold">Spendly</span>
+          <span className="text-2xl font-extrabold">Tally</span>
         </div>
         <div className="relative my-auto max-w-md">
           <h2 className="text-4xl font-extrabold leading-tight tracking-tight">Understand every rupee, from every statement.</h2>
-          <p className="mt-4 text-brand-100/90">Upload bank statements from any bank. Spendly reads them, recognises UPI merchants, categorises spending and flags anything unusual.</p>
+          <p className="mt-4 text-brand-100/90">Upload bank statements from any bank. Tally reads them, recognises UPI merchants, categorises spending and flags anything unusual.</p>
           <ul className="mt-8 space-y-4 text-sm">
             {[[Zap, 'Works with HDFC, ICICI, SBI, Axis, Kotak and generic CSV/PDF formats'],
               [Sparkles, 'Automatic categorisation with rules you control'],
@@ -60,7 +60,7 @@ export function Login() {
     try { await login(form.email, form.password) } catch (err) { setError(errorMessage(err)) } finally { setBusy(false) }
   }
   return (
-    <Shell title="Welcome back" subtitle="Sign in to see your spending." footer={<>New to Spendly? <Link to="/register" className="font-semibold text-brand-600 hover:underline">Create an account</Link></>}>
+    <Shell title="Welcome back" subtitle="Sign in to see your spending." footer={<>New to Tally? <Link to="/register" className="font-semibold text-brand-600 hover:underline">Create an account</Link></>}>
       <form onSubmit={submit} className="space-y-4">
         <Field id="email" label="Email" type="email" autoComplete="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <Field id="password" label="Password" type="password" autoComplete="current-password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />

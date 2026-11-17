@@ -103,12 +103,12 @@ export default function SettingsPage() {
           </div>
           <div className="mt-6 flex gap-3 rounded-xl bg-brand-50/70 p-4 text-sm text-ink-soft">
             <ShieldCheck className="h-5 w-5 shrink-0 text-brand-600" />
-            <p>Spendly is read-only: it never connects to your bank, never stores bank credentials and never initiates payments. Uploaded files are processed in memory and discarded.</p>
+            <p>Tally is read-only: it never connects to your bank, never stores bank credentials and never initiates payments. Uploaded files are processed in memory and discarded.</p>
           </div>
         </Card>
 
         <Card className="card-pad">
-          <CardHeader icon={Sparkles} title="Demo mode" subtitle="Explore Spendly with a synthetic statement" />
+          <CardHeader icon={Sparkles} title="Demo mode" subtitle="Explore Tally with a synthetic statement" />
           <p className="text-sm text-ink-soft">Imports a bundled, fully synthetic HDFC-format statement (Aug–Oct 2025) through the real parsing pipeline. It contains no real customer information.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button className="btn-primary" onClick={() => demo(true)} disabled={busy === 'demo' || s?.demo_available === false}>{busy === 'demo' && <Loader2 className="h-4 w-4 animate-spin" />}Load demo data</button>

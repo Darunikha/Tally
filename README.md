@@ -1,6 +1,6 @@
-# Spendly – Smart Bank Statement & UPI Spend Analyzer
+# Tally – Smart Bank Statement & UPI Spend Analyzer
 
-Upload bank statements (CSV or PDF) from different Indian banks. Spendly parses them with bank-specific
+Upload bank statements (CSV or PDF) from different Indian banks. Tally parses them with bank-specific
 adapters, recognises UPI merchants, categorises spending with a regex rule engine you control, flags
 unusual activity, and turns everything into a dashboard.
 
@@ -204,7 +204,7 @@ in ₹ with Indian digit grouping.
 
 ## Scanned PDFs
 Text PDFs and CSVs work out of the box. For scanned (image-only) PDFs, install the Tesseract binary and
-`pip install pytesseract`, and Spendly will OCR them automatically. Without it, users get a clear message
+`pip install pytesseract`, and Tally will OCR them automatically. Without it, users get a clear message
 suggesting a CSV or text PDF instead.
 
 ## Sample data

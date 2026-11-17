@@ -8,12 +8,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "Spendly API"
+    app_name: str = "Tally API"
     environment: str = "development"
 
     # "mongodb://..." for a real server, or "mongomock://" for an in-memory dev/test database.
     mongodb_url: str = "mongodb://localhost:27017"
-    mongodb_db: str = "spendly"
+    mongodb_db: str = "tally"
 
     jwt_secret: str = Field(default="", description="Required. Long random string.")
     jwt_algorithm: str = "HS256"

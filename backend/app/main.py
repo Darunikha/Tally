@@ -1,4 +1,4 @@
-"""Spendly API - FastAPI application factory."""
+"""Tally API - FastAPI application factory."""
 import logging
 from contextlib import asynccontextmanager
 
@@ -12,7 +12,7 @@ from app.core.logging import setup_logging
 from app.database import mongo
 from app.services.statements import resume_interrupted_deletions
 
-log = logging.getLogger("spendly")
+log = logging.getLogger("tally")
 
 
 @asynccontextmanager

@@ -22,7 +22,7 @@ export function Logo({ className = '' }) {
         <path d="M6 26C6 13 15 6 27 5c0 13-8 21-20 21H6Z" fill="#2F7D55" />
         <path d="M7 25 18 14" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
       </svg>
-      <span className="text-[1.4rem] font-extrabold tracking-tight text-ink">Spendly</span>
+      <span className="text-[1.4rem] font-extrabold tracking-tight text-ink">Tally</span>
     </div>
   )
 }

@@ -6,7 +6,7 @@ from pymongo import ASCENDING, DESCENDING
 
 from app.core.config import get_settings
 
-log = logging.getLogger("spendly.db")
+log = logging.getLogger("tally.db")
 
 USERS = "users"
 STATEMENT_UPLOADS = "statement_uploads"

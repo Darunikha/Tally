@@ -14,7 +14,7 @@ from app.parsers.base import ParseError, StatementTable, norm_header
 from app.utils.dates import parse_date
 from app.utils.money import parse_amount
 
-log = logging.getLogger("spendly.parsers")
+log = logging.getLogger("tally.parsers")
 
 _DATE_HDR = re.compile(r"date|dt$")
 _DESC_HDR = re.compile(r"narration|description|particulars|remarks|details|memo|payee")

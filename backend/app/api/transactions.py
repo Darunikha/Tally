@@ -85,7 +85,7 @@ async def export_csv(f: TxnFilters = Depends(), user=Depends(current_user), db=D
                     cats.get(str(t.get("category_id")), {}).get("name", ""), t.get("payment_method"),
                     t.get("upi_id") or "", t.get("transaction_reference") or "", t.get("bank_name"), t.get("notes") or ""])
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
-                             headers={"Content-Disposition": "attachment; filename=spendly-transactions.csv"})
+                             headers={"Content-Disposition": "attachment; filename=tally-transactions.csv"})
 
 
 @router.get("/{txn_id}")

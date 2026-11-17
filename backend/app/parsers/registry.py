@@ -8,7 +8,7 @@ from app.parsers.adapters.banks import BANK_PARSERS, GENERIC_PARSER
 from app.parsers.base import BaseBankParser, ParseError, ParseResult, StatementTable
 from app.parsers.readers import read_csv, read_pdf
 
-log = logging.getLogger("spendly.parsers")
+log = logging.getLogger("tally.parsers")
 
 DETECTION_THRESHOLD = 0.6
 

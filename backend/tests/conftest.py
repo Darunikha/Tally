@@ -22,7 +22,7 @@ def sample():
 @pytest.fixture
 async def db():
     client = AsyncMongoMockClient(tz_aware=False)
-    database = client["spendly_test"]
+    database = client["tally_test"]
     await mongo.ensure_indexes(database)
     mongo.set_db(database)
     yield database

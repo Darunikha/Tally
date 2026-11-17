@@ -29,7 +29,7 @@ from app.services.summaries import refresh_summaries
 from app.utils.dates import utcnow
 from app.utils.money import r2
 
-log = logging.getLogger("spendly.statements")
+log = logging.getLogger("tally.statements")
 
 PREVIEW_ROWS = 100
 STALE_PREVIEW = timedelta(hours=24)
