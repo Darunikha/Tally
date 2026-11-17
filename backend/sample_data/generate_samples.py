@@ -251,6 +251,94 @@ def gen_pdfs(sbi_data):
     c.save()
 
 
+LOCKED_PDF_PASSWORD = "DEMO1234"  # synthetic sample only
+
+
+def gen_excel():
+    """Excel variants banks actually send: real .xlsx, real binary .xls, and HTML saved as .xls."""
+    # 1) .xlsx in HDFC layout with true date & numeric cells (not text)
+    try:
+        import openpyxl
+        data = build_transactions(11, date(2025, 8, 1), 3, 85000, 42000)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Statement"
+        for r in [["HDFC BANK Ltd."], ["Account Holder: DEMO USER"], ["Account No: XXXXXXXX4321"], ["IFSC: HDFC0000123"], []]:
+            ws.append(r)
+        ws.append(["Date", "Narration", "Chq./Ref.No.", "Value Dt", "Withdrawal Amt.", "Deposit Amt.", "Closing Balance"])
+        ws.append(["********", "********", "********", "********", "********", "********", "********"])
+        from datetime import datetime as dt
+        for t, bal, ref in data:
+            d = dt(t.d.year, t.d.month, t.d.day)
+            ws.append([d, narration("hdfc", t, ref), int(ref), d, None if t.credit else t.amount,
+                       t.amount if t.credit else None, bal])
+        wb.save(OUT / "hdfc_statement.xlsx")
+    except ImportError:
+        print("openpyxl not installed - skipping .xlsx sample")
+
+    # 2) binary .xls (BIFF8) in ICICI layout, dates stored as Excel serial dates
+    try:
+        import xlwt
+        data = build_transactions(22, date(2025, 8, 1), 3, 72000, 15000)
+        book = xlwt.Workbook()
+        sh = book.add_sheet("OpTransactionHistory")
+        date_style = xlwt.easyxf(num_format_str="DD/MM/YYYY")
+        row = 0
+        for line in ["DETAILED STATEMENT", "ICICI Bank Limited", "Transactions List - DEMO USER - INR - XXXXXXXX9876", ""]:
+            sh.write(row, 0, line); row += 1
+        headers = ["S No.", "Value Date", "Transaction Date", "Cheque Number", "Transaction Remarks",
+                   "Withdrawal Amount (INR )", "Deposit Amount (INR )", "Balance (INR )"]
+        for c, h in enumerate(headers):
+            sh.write(row, c, h)
+        row += 1
+        for i, (t, bal, ref) in enumerate(data, 1):
+            vals = [i, t.d, t.d, "-", narration("icici", t, ref), 0.0 if t.credit else t.amount,
+                    t.amount if t.credit else 0.0, bal]
+            for c, v in enumerate(vals):
+                sh.write(row, c, v, date_style) if isinstance(v, date) else sh.write(row, c, v)
+            row += 1
+        book.save(str(OUT / "icici_statement.xls"))
+    except ImportError:
+        print("xlwt not installed - skipping .xls sample")
+
+    # 3) HTML table saved with a .xls extension (a very common "Excel" export)
+    data = build_transactions(44, date(2025, 8, 1), 3, 91000, 50000)
+    cells = lambda tag, vals: "<tr>" + "".join(f"<{tag}>{v}</{tag}>" for v in vals) + "</tr>"
+    rows = [cells("td", ["Statement of Axis Account No :XXXXXXXX7777 for the period"]), cells("td", ["DEMO USER"]),
+            cells("th", ["Tran Date", "CHQNO", "PARTICULARS", "DR", "CR", "BAL", "SOL"])]
+    for t, bal, ref in data:
+        rows.append(cells("td", [f"{t.d:%d-%m-%Y}", "", narration("axis", t, ref), "" if t.credit else f"{t.amount:.2f}",
+                                 f"{t.amount:.2f}" if t.credit else "", f"{bal:.2f}", "1234"]))
+    (OUT / "axis_statement_html.xls").write_text(
+        "<html><head><meta charset='utf-8'></head><body><table border='1'>\n" + "\n".join(rows) + "\n</table></body></html>",
+        encoding="utf-8")
+
+
+def gen_locked_pdf():
+    """Password-protected copy of the SBI PDF (password: DEMO1234), like real bank e-statements."""
+    try:
+        from reportlab.lib import pdfencrypt
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
+    except ImportError:
+        return
+    data = build_transactions(33, date(2025, 8, 1), 1, 64000, 23000)
+    enc = pdfencrypt.StandardEncryption(LOCKED_PDF_PASSWORD, ownerPassword="owner-" + LOCKED_PDF_PASSWORD, strength=128)
+    doc = SimpleDocTemplate(str(OUT / "sbi_statement_locked.pdf"), pagesize=landscape(A4), encrypt=enc)
+    small = getSampleStyleSheet()["BodyText"].clone("s", fontSize=7, leading=8)
+    body = [["Txn Date", "Value Date", "Description", "Ref No./Cheque No.", "Debit", "Credit", "Balance"]]
+    for t, bal, ref in data:
+        body.append([f"{t.d.day} {t.d:%b %Y}", f"{t.d.day} {t.d:%b %Y}", Paragraph(narration("sbi", t, ref), small), ref,
+                     "" if t.credit else money(t.amount), money(t.amount) if t.credit else "", money(bal)])
+    tbl = Table(body, colWidths=[60, 60, 330, 90, 70, 70, 80], repeatRows=1)
+    tbl.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.4, colors.grey), ("FONTSIZE", (0, 0), (-1, -1), 7)]))
+    doc.build([Paragraph("STATE BANK OF INDIA - Account Statement (SYNTHETIC, password DEMO1234)",
+                         getSampleStyleSheet()["Heading2"]), tbl])
+
+
 if __name__ == "__main__":
     gen_hdfc(); gen_icici(); sbi = gen_sbi(); gen_axis(); gen_kotak(); gen_unknown(); gen_pdfs(sbi)
+    gen_excel(); gen_locked_pdf()
     print("Synthetic samples written to", OUT)

@@ -6,6 +6,7 @@ import re
 
 from app.parsers.adapters.banks import BANK_PARSERS, GENERIC_PARSER
 from app.parsers.base import BaseBankParser, ParseError, ParseResult, StatementTable
+from app.parsers.excel import read_excel
 from app.parsers.readers import read_csv, read_pdf
 
 log = logging.getLogger("tally.parsers")
@@ -29,18 +30,22 @@ def identify_bank(table: StatementTable) -> tuple[BaseBankParser, float]:
     return GENERIC_PARSER, 0.0
 
 
-def read_table(content: bytes, file_type: str) -> StatementTable:
+def read_table(content: bytes, file_type: str, password: str | None = None) -> StatementTable:
     if file_type == "csv":
         return read_csv(content)
     if file_type == "pdf":
-        return read_pdf(content)
+        return read_pdf(content, password)
+    if file_type in ("xls", "xlsx"):
+        return read_excel(content)
     raise ParseError(f"Unsupported file type: {file_type}")
 
 
-def parse_statement(content: bytes, file_type: str, bank_hint: str | None = None) -> tuple[ParseResult, BaseBankParser]:
+def parse_statement(content: bytes, file_type: str, bank_hint: str | None = None,
+                    password: str | None = None) -> tuple[ParseResult, BaseBankParser]:
     """Read the file, pick an adapter (or use `bank_hint`), and parse. Falls back to the generic
-    adapter if the bank-specific adapter fails on a slightly different layout."""
-    table = read_table(content, file_type)
+    adapter if the bank-specific adapter fails on a slightly different layout.
+    `password` unlocks encrypted PDFs; it is used in memory only."""
+    table = read_table(content, file_type, password)
     parser = get_parser(bank_hint) if bank_hint else None
     if parser is None:
         parser, score = identify_bank(table)

@@ -1,6 +1,7 @@
 # Tally – Smart Bank Statement & UPI Spend Analyzer
 
-Upload bank statements (CSV or PDF) from different Indian banks. Tally parses them with bank-specific
+Upload bank statements (CSV, Excel or PDF, including password-protected e-statements) from different
+Indian banks. Tally parses them with bank-specific
 adapters, recognises UPI merchants, categorises spending with a regex rule engine you control, flags
 unusual activity, and turns everything into a dashboard.
 
@@ -10,7 +11,7 @@ and never sends statement data to external AI services.
 | Layer    | Stack |
 |----------|-------|
 | Frontend | React 18 + Vite 5, Tailwind CSS 3, Recharts, Lucide icons, Axios |
-| Backend  | FastAPI, Pydantic v2, Pandas, pdfplumber, Motor (async MongoDB) |
+| Backend  | FastAPI, Pydantic v2, Pandas, pdfplumber, openpyxl/xlrd, Motor (async MongoDB) |
 | Database | MongoDB |
 | Auth     | bcrypt password hashing + JWT bearer tokens |
 
@@ -61,8 +62,8 @@ cd backend
 python -m pytest
 ```
 
-There are 122 tests covering:
-* CSV and PDF parsing (ruled-table PDFs and the plain-text fallback), and bank recognition
+There are 135 tests covering:
+* CSV, Excel (.xlsx, .xls, HTML-.xls) and PDF parsing, incl. RC4/AES password-protected PDFs, and bank recognition
 * Running-balance reconciliation for each bank
 * Transaction, UPI and merchant normalization
 * Regex categorization, priorities and manual overrides
@@ -90,7 +91,8 @@ backend/
     schemas/requests.py     Pydantic request validation
     parsers/
       base.py               BaseBankParser interface, StatementTable, ParsedTransaction
-      readers.py            CSV/PDF → table (header detection, pdfplumber, OCR, text-line fallback)
+      readers.py            CSV/PDF → table (header detection, pdfplumber, PDF passwords, OCR, text-line fallback)
+      excel.py              .xlsx / .xls / HTML-.xls / text-.xls → table (zip-bomb + row limits)
       adapters/banks.py     HDFC, ICICI, SBI, Axis, Kotak adapters + generic fallback
       registry.py           bank identification and dispatch
     categorization/         default categories/rules + regex rule engine
@@ -99,7 +101,8 @@ backend/
     services/               file validation, normalization/dedupe, import pipeline, summaries, queries
     utils/                  UPI extraction, merchant normalization, payment methods, IST dates, money
     api/                    auth, statements, transactions, categories+rules, analytics+UPI, anomalies, settings
-  sample_data/              SYNTHETIC statements (5 bank CSV formats, unknown format, 2 PDFs) + generator
+  sample_data/              SYNTHETIC statements: 5 bank CSV layouts, unknown layout, .xlsx, .xls,
+                            HTML-.xls, 2 PDFs, a password-locked PDF (password DEMO1234) + generator
   tests/
 frontend/src/
   api/client.js             axios instance, auth header, error messages
@@ -127,6 +130,16 @@ confirm → insert into raw_transactions (duplicates skipped) → refresh spendi
   date + amounts + normalized narration + balance, plus an occurrence counter for legitimately identical rows.
 * Deleting a statement first marks it `deleting`, then removes its transactions, then the upload record, then refreshes
   summaries. Each step is idempotent, and interrupted deletions are finished automatically at startup.
+
+### Supported file types
+| File | How it's read |
+|------|---------------|
+| `.csv` | Any delimiter (`,` `;` tab `|`). Preamble lines before the header row are skipped automatically. |
+| `.pdf` | Ruled tables via pdfplumber, with a plain-text line fallback. **Password-protected e-statements** (RC4 and AES-128/256) are supported: the upload page asks for the password, uses it once in memory, and never stores it. |
+| `.xlsx` | openpyxl in read-only mode. Real date and number cells are handled, and every sheet is searched for the transaction table. |
+| `.xls` | Real binary `.xls` files via xlrd. Many banks' "Excel" downloads are actually HTML tables or tab-separated text with an `.xls` extension, so those are detected by their content and handled too. |
+
+Password-protected **Excel** files aren't supported. Users are told to save an unlocked copy, or to download a CSV or PDF instead.
 
 ### Adding a bank
 Create a subclass of `BaseBankParser` in `parsers/adapters/banks.py`, declaring:
@@ -194,7 +207,8 @@ in ₹ with Indian digit grouping.
 * Uploads are treated as untrusted input:
   * Extension, MIME type and magic bytes are checked.
   * Size is limited (`MAX_UPLOAD_MB`) and the read itself is bounded.
-  * PDFs are limited to 200 pages, and password-protected PDFs are rejected with a clear message.
+  * PDFs are limited to 200 pages. Excel files get zip-bomb, sheet and row limits, and XML is parsed with defusedxml.
+  * PDF passwords are used once in memory to unlock the file. They are never stored, logged or returned.
 * Every query is scoped to the authenticated user. Search text is regex-escaped. IDs are validated.
 * Passwords are hashed with bcrypt (12 rounds), and login responses take the same time whether or not an email exists.
 * Logs never include descriptions, amounts or VPAs, and a redacting filter masks VPAs and long digit runs as a backstop.

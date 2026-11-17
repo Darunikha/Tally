@@ -1,4 +1,4 @@
-"""Turn raw CSV / PDF bytes into a StatementTable (header row + data rows + text).
+"""Turn raw CSV / PDF bytes into a StatementTable (header row + data rows + text). Excel: see excel.py.
 
 Bank exports often have account-holder preambles before the real header row, so the header row
 is located by scoring the first rows for date/description/amount keywords.
@@ -10,7 +10,7 @@ import io
 import logging
 import re
 
-from app.parsers.base import ParseError, StatementTable, norm_header
+from app.parsers.base import ParseError, PasswordRequired, StatementTable, norm_header
 from app.utils.dates import parse_date
 from app.utils.money import parse_amount
 
@@ -59,9 +59,9 @@ def _dedupe_headers(headers: list[str]) -> list[str]:
     return out
 
 
-def _build_table(rows: list[list[str]], source: str, extra_text: str = "") -> StatementTable:
+def _build_table(rows: list[list[str]], source: str, extra_text: str = "", scan: int = 60) -> StatementTable:
     rows = [[("" if c is None else str(c)) for c in r] for r in rows]
-    h = _find_header(rows)
+    h = _find_header(rows, scan)
     headers = _dedupe_headers(rows[h])
     preamble = "\n".join(" ".join(c for c in r if c) for r in rows[:h])
     data = [r + [""] * (len(headers) - len(r)) if len(r) < len(headers) else r for r in rows[h + 1:]]
@@ -99,20 +99,30 @@ def read_csv(content: bytes) -> StatementTable:
 
 
 # ---------------------------------------------------------------- PDF
-def _open_pdf(content: bytes):
+def _open_pdf(content: bytes, password: str | None = None):
+    """Open a PDF, unlocking it with `password` if encrypted (RC4 / AES-128 / AES-256).
+    The password is only used in memory for this call - never stored or logged."""
     import pdfplumber
+    from pdfminer.pdfdocument import PDFEncryptionError, PDFPasswordIncorrect
 
     try:
-        return pdfplumber.open(io.BytesIO(content))
+        pdf = pdfplumber.open(io.BytesIO(content), password=password or "")
+        _ = pdf.pages  # force document parsing so decryption problems surface here
+        return pdf
+    except PDFPasswordIncorrect:
+        raise PasswordRequired(incorrect=bool(password)) from None
+    except PDFEncryptionError:
+        raise ParseError("This PDF uses an encryption method that isn't supported. "
+                         "Please download an unlocked copy or a CSV/Excel statement.") from None
     except Exception as exc:  # pdfminer raises a variety of errors
         msg = str(exc).lower()
         if "password" in msg or "encrypt" in msg:
-            raise ParseError("This PDF is password protected. Please upload an unlocked statement.") from None
+            raise PasswordRequired(incorrect=bool(password)) from None
         raise ParseError("The PDF could not be opened. It may be corrupted.") from None
 
 
-def read_pdf(content: bytes) -> StatementTable:
-    pdf = _open_pdf(content)
+def read_pdf(content: bytes, password: str | None = None) -> StatementTable:
+    pdf = _open_pdf(content, password)
     try:
         if len(pdf.pages) > 200:
             raise ParseError("PDF has too many pages (max 200).")

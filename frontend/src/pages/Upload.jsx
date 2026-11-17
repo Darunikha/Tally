@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  AlertTriangle, ArrowRight, Building2, CheckCircle2, CloudUpload, Copy, FileSpreadsheet, FileText, Loader2,
-  ShieldCheck, Sparkles, X,
+  AlertTriangle, ArrowRight, Building2, CheckCircle2, CloudUpload, Copy, Eye, EyeOff, FileSpreadsheet, FileText,
+  KeyRound, Loader2, LockKeyhole, ShieldCheck, Sparkles, X,
 } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
 import { Badge, Card, CardHeader, CategoryPill, PageHeader, TypeBadge } from '../components/ui'
@@ -12,6 +12,10 @@ import { useApi } from '../hooks/useApi'
 import { formatBytes, formatDate, formatDateTime, formatINR } from '../lib/format'
 
 const MAX_MB = 10
+const EXTENSIONS = ['csv', 'pdf', 'xls', 'xlsx']
+const ACCEPT = '.csv,.pdf,.xls,.xlsx,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+const PASSWORD_ERRORS = ['pdf_password_required', 'pdf_password_incorrect']
+const extOf = (name = '') => name.split('.').pop().toLowerCase()
 
 function Step({ n, label, state }) {
   const cls = state === 'done' ? 'bg-brand-500 text-white' : state === 'active' ? 'bg-brand-100 text-brand-700 ring-2 ring-brand-300' : 'bg-canvas text-ink-faint ring-1 ring-line'
@@ -46,21 +50,29 @@ export default function Upload() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [includeDup, setIncludeDup] = useState(false)
+  const [password, setPassword] = useState('') // in memory only; cleared once the file is unlocked
+  const [showPw, setShowPw] = useState(false)
+  const pwRef = useRef(null)
+  const isPdf = !!file && extOf(file.name) === 'pdf'
+  const needsPassword = PASSWORD_ERRORS.includes(error?.code)
+
+  useEffect(() => { if (needsPassword) pwRef.current?.focus() }, [needsPassword, error])
   const banks = useApi('/statements/banks')
   const history = useApi('/statements', null, [result])
 
   const pick = (f) => {
     setError(null)
     if (!f) return
-    const ext = f.name.split('.').pop().toLowerCase()
-    if (!['csv', 'pdf'].includes(ext)) return setError({ message: 'Only CSV and PDF statements are supported.' })
+    if (!EXTENSIONS.includes(extOf(f.name))) return setError({ message: 'Only CSV, PDF and Excel (.xls, .xlsx) statements are supported.' })
     if (f.size > MAX_MB * 1024 * 1024) return setError({ message: `File is larger than ${MAX_MB} MB.` })
     if (f.size === 0) return setError({ message: 'The selected file is empty.' })
     setFile(f)
+    setPassword(''); setShowPw(false)
   }
 
   const reset = () => {
     setFile(null); setPreview(null); setResult(null); setError(null); setProgress(0); setPhase('select'); setIncludeDup(false)
+    setPassword(''); setShowPw(false)
     if (inputRef.current) inputRef.current.value = ''
   }
 
@@ -69,6 +81,7 @@ export default function Upload() {
     const form = new FormData()
     form.append('file', file)
     if (bank) form.append('bank', bank)
+    if (isPdf && password) form.append('password', password)
     try {
       const r = await api.post('/statements/preview', form, {
         onUploadProgress: (e) => {
@@ -78,6 +91,7 @@ export default function Upload() {
         },
       })
       setPreview(r.data)
+      setPassword('') // no longer needed once the statement is unlocked
       setPhase('preview')
     } catch (e) {
       setError({ message: errorMessage(e), code: e.response?.data?.error?.code, details: e.response?.data?.error?.details })
@@ -112,7 +126,7 @@ export default function Upload() {
 
   return (
     <div className="animate-fade-up">
-      <PageHeader title="Upload Statement" subtitle="Import a CSV or PDF statement. You'll review everything before it's saved." />
+      <PageHeader title="Upload Statement" subtitle="Import a CSV, PDF or Excel statement. You'll review everything before it's saved." />
 
       <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3">
         <Step n={1} label="Choose file" state={stepState(0)} />
@@ -135,13 +149,13 @@ export default function Upload() {
                 drag ? 'border-brand-400 bg-brand-50' : 'border-line bg-canvas/50 hover:border-brand-300 hover:bg-brand-50/40'}`}>
               <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-white text-brand-500 shadow-card"><CloudUpload className="h-8 w-8" /></div>
               <p className="text-base font-bold text-ink">Drag & drop your statement here</p>
-              <p className="mt-1 text-sm text-ink-muted">or <span className="font-semibold text-brand-600">browse files</span> · CSV or PDF · up to {MAX_MB} MB</p>
-              <input ref={inputRef} type="file" accept=".csv,.pdf,text/csv,application/pdf" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+              <p className="mt-1 text-sm text-ink-muted">or <span className="font-semibold text-brand-600">browse files</span> · CSV, PDF or Excel · up to {MAX_MB} MB</p>
+              <input ref={inputRef} type="file" accept={ACCEPT} className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
             </div>
 
             {file && (
               <div className="mt-5 flex items-center gap-3 rounded-xl border border-line p-3">
-                <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-50 text-brand-600">{file.name.toLowerCase().endsWith('.pdf') ? <FileText className="h-5 w-5" /> : <FileSpreadsheet className="h-5 w-5" />}</span>
+                <span className="grid h-10 w-10 place-items-center rounded-lg bg-brand-50 text-brand-600">{isPdf ? <FileText className="h-5 w-5" /> : <FileSpreadsheet className="h-5 w-5" />}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-ink">{file.name}</p>
                   <p className="text-xs text-ink-muted">{formatBytes(file.size)}</p>
@@ -156,15 +170,39 @@ export default function Upload() {
               </div>
             )}
 
-            {error && (
+            {error && !needsPassword && (
               <div role="alert" className="mt-5 flex gap-3 rounded-xl bg-danger-50 p-4 text-sm">
                 <AlertTriangle className="h-5 w-5 shrink-0 text-danger-500" />
                 <div>
                   <p className="font-semibold text-danger-600">{error.code === 'duplicate_statement' ? 'Already imported' : 'Upload failed'}</p>
                   <p className="text-ink-soft">{error.message}</p>
                   {error.code === 'duplicate_statement' && <Link to="/statements" className="mt-1 inline-block font-semibold text-brand-600 hover:underline">View statement history</Link>}
-                  {error.code === 'parse_error' && <p className="mt-1 text-ink-muted">Tip: choose your bank explicitly below, or export the statement as CSV from net banking.</p>}
+                  {error.code === 'parse_error' && <p className="mt-1 text-ink-muted">Tip: choose your bank explicitly below, or export the statement as CSV or Excel from net banking.</p>}
                 </div>
+              </div>
+            )}
+
+            {isPdf && phase === 'select' && (
+              <div className={`mt-5 rounded-xl p-4 transition ${needsPassword ? 'bg-warn-50 ring-1 ring-warn-100' : 'bg-canvas'}`}>
+                {needsPassword && (
+                  <div role="alert" className="mb-3 flex gap-2.5 text-sm">
+                    <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-warn-500" />
+                    <div>
+                      <p className="font-semibold text-ink">{error.code === 'pdf_password_incorrect' ? 'Incorrect password' : 'This statement is password protected'}</p>
+                      <p className="text-ink-soft">{error.message}</p>
+                    </div>
+                  </div>
+                )}
+                <label className="label flex items-center gap-1.5" htmlFor="pdf-pw"><KeyRound className="h-3.5 w-3.5" />PDF password {!needsPassword && <span className="font-normal normal-case tracking-normal text-ink-faint">(only if the file is locked)</span>}</label>
+                <div className="relative">
+                  <input id="pdf-pw" ref={pwRef} type={showPw ? 'text' : 'password'} className="input pr-11" maxLength={128}
+                    autoComplete="off" spellCheck={false} value={password} placeholder="e.g. date of birth or customer ID"
+                    onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && password && upload()} />
+                  <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-ink-muted hover:bg-white hover:text-ink" aria-label={showPw ? 'Hide password' : 'Show password'}>
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="mt-1.5 text-xs text-ink-muted">Banks usually use your date of birth (DDMMYYYY), customer ID, or part of your name + birth date - check the email the statement came with. The password is only used to open this file and is never stored.</p>
               </div>
             )}
 
@@ -176,8 +214,9 @@ export default function Upload() {
                   {(banks.data || []).map((b) => <option key={b.key} value={b.key}>{b.key === 'generic' ? 'Other bank (generic parser)' : b.bank_name}</option>)}
                 </select>
               </div>
-              <button className="btn-primary h-[42px]" disabled={!file || phase !== 'select'} onClick={upload}>
-                {phase === 'select' ? <Sparkles className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}Analyse statement
+              <button className="btn-primary h-[42px]" disabled={!file || phase !== 'select' || (needsPassword && !password)} onClick={upload}>
+                {phase !== 'select' ? <Loader2 className="h-4 w-4 animate-spin" /> : needsPassword ? <LockKeyhole className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                {needsPassword ? 'Unlock & analyse' : 'Analyse statement'}
               </button>
             </div>
           </Card>
@@ -186,15 +225,16 @@ export default function Upload() {
             <Card className="card-pad">
               <CardHeader icon={Building2} title="Supported formats" />
               <ul className="space-y-2 text-sm text-ink-soft">
-                {(banks.data || []).filter((b) => b.key !== 'generic').map((b) => <li key={b.key} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand-500" />{b.bank_name} <span className="text-xs text-ink-faint">CSV · PDF</span></li>)}
+                {(banks.data || []).filter((b) => b.key !== 'generic').map((b) => <li key={b.key} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand-500" />{b.bank_name} <span className="text-xs text-ink-faint">CSV · PDF · Excel</span></li>)}
                 <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand-500" />Other banks via the generic parser</li>
               </ul>
-              <p className="mt-3 text-xs text-ink-muted">Scanned PDFs need OCR (Tesseract) on the server; text-based PDFs and CSVs work out of the box.</p>
+              <p className="mt-3 text-xs text-ink-muted">CSV, Excel (.xls/.xlsx) and text PDFs - including password-protected e-statements - work out of the box. Scanned PDFs need OCR (Tesseract) on the server.</p>
             </Card>
             <Card className="card-pad">
               <CardHeader icon={ShieldCheck} title="Your data, handled carefully" />
               <ul className="space-y-2 text-sm text-ink-soft">
                 <li>• Files are processed in memory and never stored.</li>
+                <li>• PDF passwords are used once to unlock the file, never saved.</li>
                 <li>• Nothing is imported until you confirm.</li>
                 <li>• No bank logins, no payments - read-only analysis.</li>
                 <li>• Statement data is never sent to external AI services.</li>

@@ -20,7 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from app.core.errors import AppError
 from app.database.mongo import RAW_TRANSACTIONS, STAGED_TRANSACTIONS, STATEMENT_UPLOADS
 from app.models.documents import upload_doc
-from app.parsers.base import ParseError
+from app.parsers.base import ParseError, PasswordRequired
 from app.parsers.registry import parse_statement
 from app.services.categories import apply_engine, load_engine
 from app.services.file_validation import validate_upload
@@ -48,7 +48,9 @@ async def _cleanup_stale_previews(db, user_id: ObjectId) -> None:
 
 
 async def create_preview(db, user_id: ObjectId, filename: str, content_type: str | None, content: bytes,
-                         bank_hint: str | None = None, is_demo: bool = False) -> dict:
+                         bank_hint: str | None = None, is_demo: bool = False, password: str | None = None) -> dict:
+    """`password` unlocks an encrypted PDF. It is passed straight to the parser, kept in memory only,
+    and never stored, logged or echoed back."""
     safe_name, ftype, fhash = validate_upload(filename, content_type, content)
     await _cleanup_stale_previews(db, user_id)
 
@@ -66,7 +68,12 @@ async def create_preview(db, user_id: ObjectId, filename: str, content_type: str
     await db[STATEMENT_UPLOADS].insert_one(up)
 
     try:
-        result, parser = await run_in_threadpool(parse_statement, content, ftype, bank_hint)
+        result, parser = await run_in_threadpool(parse_statement, content, ftype, bank_hint, password)
+    except PasswordRequired as exc:
+        # not a failed import - just waiting for the password, so leave no trace in history
+        await db[STATEMENT_UPLOADS].delete_one({"_id": up["_id"]})
+        code = "pdf_password_incorrect" if exc.incorrect else "pdf_password_required"
+        raise AppError(str(exc), 422, code) from None
     except ParseError as exc:
         await db[STATEMENT_UPLOADS].update_one({"_id": up["_id"]}, {"$set": {"processing_status": "failed", "error": str(exc)}})
         raise AppError(str(exc), 422, "parse_error", {"upload_id": str(up["_id"])}) from None

@@ -236,3 +236,45 @@ async def test_invalid_ids_and_dates(client, auth):
     assert (await client.get("/api/transactions/not-an-id", headers=auth)).status_code == 400
     assert (await client.get("/api/transactions", headers=auth, params={"start": "2025-13-01"})).status_code == 400
     assert (await client.get("/api/transactions", headers=auth, params={"start": "2025-10-10", "end": "2025-10-01"})).status_code == 400
+
+
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+async def test_excel_upload_and_cross_format_duplicates(client, auth, sample):
+    r = await upload(client, auth, sample("hdfc_statement.xlsx"), "hdfc.xlsx", XLSX)
+    assert r.status_code == 201, r.text
+    assert r.json()["upload"]["bank_name"] == "HDFC Bank" and r.json()["upload"]["file_type"] == "xlsx"
+    await client.post(f"/api/statements/{r.json()['upload']['id']}/confirm", headers=auth, json={})
+    # the same statement downloaded as CSV is recognised as already imported, row by row
+    r = await upload(client, auth, sample("hdfc_statement.csv"))
+    assert r.status_code == 201 and r.json()["new_count"] == 0 and r.json()["upload"]["duplicate_count"] == 133
+    r = await upload(client, auth, sample("icici_statement.xls"), "icici.xls", "application/vnd.ms-excel")
+    assert r.status_code == 201 and r.json()["upload"]["bank_name"] == "ICICI Bank"
+    r = await upload(client, auth, sample("axis_statement_html.xls"), "axis.xls", "application/vnd.ms-excel")
+    assert r.status_code == 201 and r.json()["upload"]["parser_used"] == "axis:xls-html"
+
+
+async def test_excel_validation(client, auth):
+    r = await upload(client, auth, b"%PDF-1.4 not excel", "x.xlsx", XLSX)
+    assert r.status_code == 400 and r.json()["error"]["code"] == "invalid_file"
+    r = await upload(client, auth, b"%PDF-1.4 not excel", "x.xls", "application/vnd.ms-excel")
+    assert r.status_code == 400
+
+
+async def test_password_protected_pdf_flow(client, auth, sample):
+    data = sample("sbi_statement_locked.pdf")
+    r = await upload(client, auth, data, "sbi_locked.pdf", "application/pdf")
+    assert r.status_code == 422 and r.json()["error"]["code"] == "pdf_password_required"
+    r = await client.post("/api/statements/preview", headers=auth, data={"password": "wrong"},
+                          files={"file": ("sbi_locked.pdf", data, "application/pdf")})
+    assert r.status_code == 422 and r.json()["error"]["code"] == "pdf_password_incorrect"
+    assert "wrong" not in r.text  # the password is never echoed back
+    # password attempts leave no failed records in history
+    assert (await client.get("/api/statements", headers=auth)).json() == []
+    r = await client.post("/api/statements/preview", headers=auth, data={"password": "DEMO1234"},
+                          files={"file": ("sbi_locked.pdf", data, "application/pdf")})
+    assert r.status_code == 201 and r.json()["upload"]["parsed_count"] == 45
+    r = await client.post("/api/statements/preview", headers=auth, data={"password": "x" * 129},
+                          files={"file": ("sbi_locked.pdf", data, "application/pdf")})
+    assert r.status_code == 422 and "x" * 20 not in r.text

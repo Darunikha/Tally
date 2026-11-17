@@ -134,3 +134,79 @@ def test_parse_date(raw, expected):
 
 def test_parse_date_invalid():
     assert parse_date("Opening Balance") is None
+
+
+# ---------------------------------------------------------------- Excel & password-protected PDFs
+from app.parsers.base import PasswordRequired  # noqa: E402
+from app.parsers.excel import read_excel  # noqa: E402
+
+
+@pytest.mark.parametrize("fname,ftype,key,source,count", [
+    ("hdfc_statement.xlsx", "xlsx", "hdfc", "xlsx", 133),
+    ("icici_statement.xls", "xls", "icici", "xls", 119),
+    ("axis_statement_html.xls", "xls", "axis", "xls-html", 125),
+])
+def test_excel_formats(sample, fname, ftype, key, source, count):
+    res, parser = parse_statement(sample(fname), ftype)
+    assert parser.key == key and res.parser_used == f"{key}:{source}"
+    assert len(res.transactions) == count
+    txns = res.transactions
+    for prev, cur in zip(txns, txns[1:]):  # real numeric/date cells must reconcile like the CSV
+        assert round(prev.balance + cur.credit_amount - cur.debit_amount, 2) == pytest.approx(cur.balance)
+
+
+def test_excel_matches_csv_exactly(sample):
+    """Same statement as CSV and as Excel -> identical transactions (so duplicates are detected)."""
+    csv_res, _ = parse_statement(sample("hdfc_statement.csv"), "csv")
+    xl_res, _ = parse_statement(sample("hdfc_statement.xlsx"), "xlsx")
+    key = lambda t: (t.transaction_date, t.description, t.debit_amount, t.credit_amount, t.balance)
+    assert [key(t) for t in csv_res.transactions] == [key(t) for t in xl_res.transactions]
+
+
+def test_excel_date_cells_and_numeric_refs(sample):
+    res, _ = parse_statement(sample("hdfc_statement.xlsx"), "xlsx")
+    t = res.transactions[0]
+    assert t.transaction_date.strftime("%Y-%m-%d") == "2025-08-01"
+    assert t.reference and "." not in t.reference  # 5108...0.0 float rendered as integer text
+
+
+def test_tab_delimited_text_saved_as_xls():
+    content = b"Date\tNarration\tWithdrawal Amt.\tDeposit Amt.\tClosing Balance\n01/10/25\tUPI-SWIGGY-swiggy@icici\t250.00\t\t750.00\n"
+    t = read_excel(content)
+    assert t.source == "xls-text" and t.rows[0][1] == "UPI-SWIGGY-swiggy@icici"
+
+
+def test_encrypted_excel_gives_clear_message():
+    fake = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 100 + "EncryptedPackage".encode("utf-16-le")
+    with pytest.raises(ParseError, match="password protected"):
+        read_excel(fake)
+
+
+def test_corrupt_xlsx_raises():
+    with pytest.raises(ParseError):
+        read_excel(b"PK\x03\x04not really a zip")
+
+
+def test_locked_pdf_requires_password(sample):
+    data = sample("sbi_statement_locked.pdf")
+    with pytest.raises(PasswordRequired) as e:
+        parse_statement(data, "pdf")
+    assert e.value.incorrect is False
+    with pytest.raises(PasswordRequired) as e:
+        parse_statement(data, "pdf", password="wrong")
+    assert e.value.incorrect is True
+    res, parser = parse_statement(data, "pdf", password="DEMO1234")
+    assert parser.key == "sbi" and len(res.transactions) == 45
+
+
+def test_aes_encrypted_pdf(sample):
+    pypdf = pytest.importorskip("pypdf")
+    import io
+    w = pypdf.PdfWriter(clone_from=pypdf.PdfReader(io.BytesIO(sample("sbi_statement.pdf"))))
+    w.encrypt("15081990", algorithm="AES-256")
+    buf = io.BytesIO()
+    w.write(buf)
+    with pytest.raises(PasswordRequired):
+        parse_statement(buf.getvalue(), "pdf")
+    res, _ = parse_statement(buf.getvalue(), "pdf", password="15081990")
+    assert len(res.transactions) == 60

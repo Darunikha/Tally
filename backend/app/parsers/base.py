@@ -19,6 +19,18 @@ class ParseError(Exception):
     """Raised when a statement cannot be read/parsed. Message is safe to show to the user."""
 
 
+class PasswordRequired(ParseError):
+    """The PDF is encrypted and no (or a wrong) password was supplied."""
+
+    def __init__(self, incorrect: bool):
+        self.incorrect = incorrect
+        super().__init__(
+            "The password is incorrect. Please check it and try again." if incorrect else
+            "This PDF is password protected. Enter the statement password to unlock it "
+            "(banks usually use your date of birth or customer ID)."
+        )
+
+
 def norm_header(h: str) -> str:
     return re.sub(r"[^a-z0-9]", "", str(h or "").lower())
 

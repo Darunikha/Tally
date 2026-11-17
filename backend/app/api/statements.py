@@ -31,7 +31,9 @@ async def supported_banks(_=Depends(current_user)):
 
 @router.post("/preview", status_code=201)
 async def preview(file: UploadFile = File(...), bank: str | None = Form(default=None),
+                  password: str | None = Form(default=None, max_length=128),
                   user=Depends(current_user), db=Depends(db_dep)):
+    """Parse a CSV / PDF / Excel statement into a preview. `password` unlocks encrypted PDFs (never stored)."""
     limit = get_settings().max_upload_bytes
     try:
         content = await file.read(limit + 1)  # bounded read
@@ -41,7 +43,8 @@ async def preview(file: UploadFile = File(...), bank: str | None = Form(default=
         raise AppError(f"File is larger than {get_settings().max_upload_mb} MB.", 413, "file_too_large")
     if bank and bank not in {p.key for p in all_parsers()}:
         raise AppError("Unknown bank format", 400, "invalid_bank")
-    res = await svc.create_preview(db, user["_id"], file.filename or "statement", file.content_type, content, bank or None)
+    res = await svc.create_preview(db, user["_id"], file.filename or "statement", file.content_type, content,
+                                   bank or None, password=password or None)
     cats = await category_map(db, user["_id"])
     return {"upload": to_json(res["upload"]), "transactions": _with_category(res["transactions"], cats),
             "new_count": res["new_count"], "uncategorized_count": res["uncategorized_count"]}
