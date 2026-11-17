@@ -18,4 +18,13 @@ export default defineConfig({
       },
     },
   },
+  // Vitest (npm test): components render in jsdom; the API layer is mocked in each test.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.js'],
+    css: false,
+    restoreMocks: true,
+    coverage: { provider: 'v8', include: ['src/**/*.{js,jsx}'], exclude: ['src/test/**', 'src/main.jsx'] },
+  },
 })

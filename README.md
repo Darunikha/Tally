@@ -58,18 +58,42 @@ set `VITE_API_URL` at build time and add that origin to `CORS_ORIGINS` in the ba
 ### 3. Tests
 
 ```bash
-cd backend
-python -m pytest
+cd backend && python -m pytest        # 150 backend tests
+cd frontend && npm test               # 54 frontend tests (Vitest + React Testing Library)
+cd frontend && npm run coverage       # frontend coverage report → frontend/coverage/
 ```
 
-There are 150 tests covering:
-* CSV, Excel (.xlsx, .xls, HTML-.xls) and PDF parsing, incl. RC4/AES password-protected PDFs, and bank recognition
+**Backend.** These tests cover:
+* CSV, Excel (.xlsx, .xls, HTML-.xls) and PDF parsing, including RC4/AES password-protected PDFs, and bank recognition
 * Running-balance reconciliation for each bank
-* Transaction, UPI and merchant normalization
-* Regex categorization, priorities and manual overrides
-* Duplicate detection, anomaly rules and analytics math
-* The full API: auth, uploads, filters, rules, deletion and per-user isolation
-* Password reset, email verification, session revocation, rate limits and data export
+* UPI and merchant normalization, regex categorization, duplicate detection, anomaly rules and analytics math
+* The full API: uploads, filters, rules, deletion and per-user isolation
+* Auth security: password reset, email verification, session revocation, rate limits and data export
+
+**Frontend.** These tests cover:
+* Formatting: Indian rupee grouping, IST greetings and dates
+* API error handling
+* UI components
+* The sign-in, signup (consent), forgot/reset password and email verification pages
+* The upload flow: file checks, the locked-PDF password prompt, duplicates and import
+
+The API is mocked, so frontend tests need no running server.
+
+### 4. Continuous integration (GitHub Actions)
+
+`.github/workflows/ci.yml` runs automatically on every push and pull request. It has two parallel jobs:
+
+| Job | Steps |
+|-----|-------|
+| Backend (Python 3.12) | install `requirements-dev.txt` → regenerate the synthetic samples → `pytest` |
+| Frontend (Node 22) | `npm ci` (exact lockfile versions) → `npm test` → `npm run build` |
+
+No secrets are needed: tests use the in-memory database and an in-memory email outbox. Results appear in the repo's **Actions** tab and as ✅/❌ next to each commit.
+
+To make CI actually block broken code:
+* **Protect `main`:** go to GitHub → Settings → Branches → Add rule for `main` → tick *Require status checks to pass*, then select both CI jobs. Pull requests can then only be merged when CI is green.
+* **Render:** in your service's settings, set Auto-Deploy to **"After CI checks pass"** so failing commits are never deployed.
+* **Vercel:** it builds every push itself, and a failing build is never promoted. For a stricter gate, turn off auto-deploys and let CI trigger them.
 
 ### Windows note
 
