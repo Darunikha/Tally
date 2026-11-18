@@ -1,0 +1,38 @@
+# Render Blueprint for the Tally API (backend).
+# Render dashboard → New → Blueprint → pick this repo. You'll be asked for the values marked sync:false.
+services:
+  - type: web
+    name: tally-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: ENVIRONMENT
+        value: production
+      - key: JWT_SECRET
+        generateValue: true            # Render creates a long random secret
+      - key: MONGODB_URL
+        sync: false                    # your MongoDB Atlas connection string (mongodb+srv://...)
+      - key: MONGODB_DB
+        value: tally
+      - key: CORS_ORIGINS
+        sync: false                    # your Vercel URL, e.g. https://tally.vercel.app
+      - key: FRONTEND_URL
+        sync: false                    # same Vercel URL (used in email links)
+      - key: TRUST_PROXY_HEADERS
+        value: "true"                  # Render sits behind a proxy; needed for correct rate limiting
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: EMAIL_PROVIDER
+        value: console                 # change to "resend" once you have a Resend API key
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "false"                 # set "true" once email sending works
