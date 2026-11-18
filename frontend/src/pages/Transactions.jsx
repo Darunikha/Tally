@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Filter, ListX, Loader2, Search, StickyNote, Tag, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Filter, ListX, Loader2, Search, StickyNote, Tag, X } from 'lucide-react'
 import { api, cleanParams, errorMessage } from '../api/client'
+import ExportMenu from '../components/ExportMenu'
 import TransactionDetail, { MerchantAvatar, useCategories } from '../components/TransactionDetail'
 import { Badge, Card, CategoryPill, EmptyState, ErrorState, LoadingBlock, PageHeader, Pagination, TypeBadge } from '../components/ui'
 import { useFilters } from '../context/FilterContext'
@@ -67,16 +68,6 @@ export default function Transactions() {
     } catch (e) { toast.error(errorMessage(e)) } finally { setBusy(false) }
   }
 
-  const exportCsv = async () => {
-    try {
-      const r = await api.get('/transactions/export', { params: cleanParams(f), responseType: 'blob' })
-      const url = URL.createObjectURL(r.data)
-      const a = document.createElement('a')
-      a.href = url; a.download = 'tally-transactions.csv'; a.click()
-      URL.revokeObjectURL(url)
-    } catch (e) { toast.error(errorMessage(e, 'Export failed')) }
-  }
-
   const catName = (id) => categories.find((c) => c.id === id)?.name
   const chips = [
     f.category_id && ['category_id', `Category: ${catName(f.category_id) || '…'}`],
@@ -92,7 +83,7 @@ export default function Transactions() {
   return (
     <div className="animate-fade-up">
       <PageHeader title="Transactions" subtitle={data ? `${data.total.toLocaleString('en-IN')} transactions` : 'All imported transactions'}
-        actions={<button className="btn-secondary" onClick={exportCsv}><Download className="h-4 w-4" />Export CSV</button>} />
+        actions={<ExportMenu params={cleanParams(f)} total={data?.total} />} />
 
       <Card className="mb-4 p-4">
         <div className="flex flex-wrap items-center gap-3">

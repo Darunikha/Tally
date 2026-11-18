@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import BudgetsCard from '../components/BudgetProgress'
 import CardPaymentsNote from '../components/CardPaymentsNote'
+import DownloadReportButton from '../components/DownloadReportButton'
 import { CategoryDonut, IncomeExpenseBars, RankBars, TrendArea } from '../components/charts'
 import PeriodPicker, { periodLabel } from '../components/layout/PeriodPicker'
 import TransactionDetail, { MerchantAvatar, useCategories } from '../components/TransactionDetail'
@@ -83,7 +84,7 @@ export default function Dashboard() {
           <h1 className="text-3xl font-extrabold tracking-tight text-ink sm:text-[2.6rem] sm:leading-tight">{greeting()}, {firstName(user?.full_name)}! <span aria-hidden="true">🌱</span></h1>
           <p className="mt-1 text-base text-ink-muted sm:text-lg">Here's your spending summary for {label}</p>
         </div>
-        <PeriodPicker />
+        <div className="flex items-center gap-2"><DownloadReportButton params={params} /><PeriodPicker /></div>
       </div>
 
       {error ? <Card className="card-pad"><ErrorState message={error} onRetry={reload} /></Card> : (

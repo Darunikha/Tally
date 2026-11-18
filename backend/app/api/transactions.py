@@ -1,17 +1,16 @@
-import csv
-import io
-
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 
 from app.api.deps import current_user, db_dep
 from app.core.errors import AppError
-from app.database.mongo import CATEGORIES, RAW_TRANSACTIONS
+from app.core.ratelimit import limit as rate_limit
+from app.database.mongo import CATEGORIES, RAW_TRANSACTIONS, STATEMENT_UPLOADS
 from app.schemas.requests import BulkCategoryUpdate, TransactionUpdate
 from app.services.categories import load_engine
+from app.services.exports import MAX_EXPORT_ROWS, build_csv, build_xlsx, export_row
 from app.services.query import build_filter, category_map, oid, resolve_period
 from app.services.summaries import refresh_summaries
-from app.utils.dates import utcnow
+from app.utils.dates import now_ist, utcnow
 from app.utils.payment import PAYMENT_METHODS
 from app.utils.serialize import to_json
 
@@ -71,21 +70,67 @@ async def list_transactions(
             "pages": max(1, -(-total // page_size))}
 
 
+def _export_name(f: TxnFilters, ext: str) -> str:
+    """tally-transactions-2025-08.csv - built from parsed dates only, never from raw query text."""
+    p = resolve_period(*f.args)
+    if f.args[2] and f.args[3]:
+        token = f"{f.args[3]}-{f.args[2]:02d}"
+    elif f.args[3] and not f.args[2]:
+        token = str(f.args[3])
+    elif p.start or p.end:
+        token = f"{p.start:%Y-%m-%d}" if p.start else "start"
+        token += f"_to_{p.end:%Y-%m-%d}" if p.end else "_onwards"
+    else:
+        token = "all-time"
+    return f"tally-transactions-{token}.{ext}"
+
+
+async def _describe_filters(f: TxnFilters, cats: dict, db, user_id) -> list[tuple[str, str]]:
+    p = resolve_period(*f.args)
+    out = []
+    if p.start or p.end:
+        first = f"{p.start:%d %b %Y}" if p.start else "the beginning"
+        out.append(("Period", first + (f" to {p.end:%d %b %Y}" if p.end else " onwards")))
+    r = f.rest
+    if r["category_id"]:
+        out.append(("Category", cats.get(r["category_id"], {}).get("name", "(unknown)")))
+    if r["upload_id"]:
+        up = await db[STATEMENT_UPLOADS].find_one({"_id": oid(r["upload_id"], "statement id"), "user_id": user_id})
+        out.append(("Statement", (up or {}).get("file_name", "(unknown)")))
+    labels = {"transaction_type": "Type", "payment_method": "Payment method", "search": "Search text", "merchant": "Merchant",
+              "min_amount": "Minimum amount", "max_amount": "Maximum amount"}
+    out += [(labels[k], str(r[k]).capitalize() if k == "transaction_type" else str(r[k])) for k in labels if r[k] not in (None, "")]
+    if r["needs_review"]:
+        out.append(("Needs review", "Yes"))
+    return out or [("Filters", "None - every transaction")]
+
+
 @router.get("/export")
-async def export_csv(f: TxnFilters = Depends(), user=Depends(current_user), db=Depends(db_dep)):
-    q = f.query(user["_id"])
-    cats = await category_map(db, user["_id"])
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(["Date", "Merchant", "Description", "Type", "Debit", "Credit", "Category", "Payment Method",
-                "UPI ID", "Reference", "Bank", "Notes"])
-    async for t in db[RAW_TRANSACTIONS].find(q).sort("transaction_date", 1):
-        w.writerow([t["transaction_date"].strftime("%Y-%m-%d"), t.get("normalized_merchant"), t.get("raw_description"),
-                    t["transaction_type"], t["debit_amount"] or "", t["credit_amount"] or "",
-                    cats.get(str(t.get("category_id")), {}).get("name", ""), t.get("payment_method"),
-                    t.get("upi_id") or "", t.get("transaction_reference") or "", t.get("bank_name"), t.get("notes") or ""])
-    return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
-                             headers={"Content-Disposition": "attachment; filename=tally-transactions.csv"})
+async def export_transactions(f: TxnFilters = Depends(), format: str = Query("csv", pattern="^(csv|xlsx)$"),
+                              user=Depends(current_user), db=Depends(db_dep)):
+    """Every transaction matching the filters (not just one page), as CSV or Excel."""
+    uid = user["_id"]
+    await rate_limit(db, "export:transactions", str(uid), 30, 3600)
+    q = f.query(uid)
+    total = await db[RAW_TRANSACTIONS].count_documents(q)
+    if total > MAX_EXPORT_ROWS:
+        raise AppError(f"That is {total:,} transactions; an export can hold {MAX_EXPORT_ROWS:,}. "
+                       "Narrow the date range or filters and try again.", 400, "too_many_rows")
+    cats = await category_map(db, uid)
+    docs = await (db[RAW_TRANSACTIONS].find(q, {"raw_bank_fields": 0}).sort([("transaction_date", 1), ("_id", 1)])
+                  .to_list(None))
+    rows = [export_row(t, cats) for t in docs]
+    if format == "xlsx":
+        debits = sum(t.get("debit_amount") or 0 for t in docs)
+        credits = sum(t.get("credit_amount") or 0 for t in docs)
+        about = [("Exported", f"{now_ist():%d %b %Y, %H:%M} IST"), ("Transactions", f"{len(rows):,}"),
+                 ("Total debits", f"{debits:,.2f}"), ("Total credits", f"{credits:,.2f}")]
+        about += await _describe_filters(f, cats, db, uid)
+        content, media = build_xlsx(rows, about), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        content, media = build_csv(rows), "text/csv; charset=utf-8"
+    return Response(content=content, media_type=media,
+                    headers={"Content-Disposition": f'attachment; filename="{_export_name(f, format)}"'})
 
 
 @router.get("/{txn_id}")

@@ -124,7 +124,7 @@ async def test_transactions_filters_sort_edit(client, auth, sample):
     assert t["category_name"] == "Food & Dining" and not t["manual_override"]
 
     export = await client.get("/api/transactions/export", headers=auth, params={"type": "credit"})
-    assert export.status_code == 200 and export.text.startswith("Date,Merchant")
+    assert export.status_code == 200 and export.content.startswith("﻿Date,Merchant,Description".encode())
 
 
 async def test_custom_rules_and_categories(client, auth, sample):

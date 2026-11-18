@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import (analytics, anomalies, auth, budgets, categories, recurring, settings, statements,
+from app.api import (analytics, anomalies, auth, budgets, categories, recurring, reports, settings, statements,
                      transactions)
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
@@ -48,6 +48,7 @@ def create_app(use_lifespan: bool = True) -> FastAPI:
     app.add_middleware(
         CORSMiddleware, allow_origins=s.cors_origin_list, allow_credentials=False,
         allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"], allow_headers=["Authorization", "Content-Type"],
+        expose_headers=["Content-Disposition", "Retry-After"],  # lets the browser read download names and rate-limit waits
     )
 
     @app.middleware("http")
@@ -60,7 +61,7 @@ def create_app(use_lifespan: bool = True) -> FastAPI:
         return resp
 
     register_error_handlers(app)
-    for r in (auth, statements, transactions, categories, budgets, recurring, analytics, anomalies, settings):
+    for r in (auth, statements, transactions, categories, budgets, recurring, reports, analytics, anomalies, settings):
         app.include_router(r.router, prefix="/api")
 
     @app.get("/api/health", tags=["health"])

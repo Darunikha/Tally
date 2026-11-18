@@ -58,8 +58,8 @@ set `VITE_API_URL` at build time and add that origin to `CORS_ORIGINS` in the ba
 ### 3. Tests
 
 ```bash
-cd backend && python -m pytest        # 240 backend tests
-cd frontend && npm test               # 87 frontend tests (Vitest + React Testing Library)
+cd backend && python -m pytest        # 290 backend tests
+cd frontend && npm test               # 104 frontend tests (Vitest + React Testing Library)
 cd frontend && npm run coverage       # frontend coverage report → frontend/coverage/
 ```
 
@@ -71,6 +71,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Budgets: status thresholds, projections, suggestions, validation and per-user isolation
 * Credit cards: every issuer layout, purchase vs payment direction, detection that never claims a bank statement, and not double counting card payments
 * Recurring payments: cadence and amount rules (including what must *not* be flagged), price changes, status, summary and the API
+* Exports: CSV and Excel contents, formula-injection safety, filters, limits, privacy, and the PDF report (checked against the dashboard's numbers)
 * Auth security: password reset, email verification, session revocation, rate limits and data export
 
 **Frontend.** These tests cover:
@@ -82,6 +83,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Budgets: progress states, creating, editing and deleting, month navigation and the dashboard card
 * Credit cards: the grouped format list, the card badge and note, and the dashboard note
 * Recurring payments: summary, upcoming list, group and status filters, hiding and restoring
+* Downloads: the export menu, the report button, filenames and readable errors
 
 The API is mocked, so frontend tests need no running server.
 
@@ -132,9 +134,10 @@ backend/
     anomaly_detection/      rule-based detectors
     (analytics/budgets.py   budget progress, projections and suggested limits)
     (analytics/recurring.py recurring payment detection)
+    (services/exports.py    CSV and Excel export, services/report_pdf.py PDF report)
     services/               file validation, normalization/dedupe, import pipeline, summaries, queries
     utils/                  UPI extraction, merchant normalization, payment methods, IST dates, money
-    api/                    auth, statements, transactions, categories+rules, budgets, recurring, analytics+UPI, anomalies, settings
+    api/                    auth, statements, transactions, categories+rules, budgets, recurring, reports, analytics+UPI, anomalies, settings
   sample_data/              SYNTHETIC statements: 5 bank CSV layouts, unknown layout, .xlsx, .xls,
                             HTML-.xls, 2 PDFs, a password-locked PDF (password DEMO1234), 4 credit card
                             CSV layouts, an unknown-issuer card CSV and a card PDF + generator
@@ -276,6 +279,13 @@ A merchant is recurring when you pay it on a steady schedule **and** a steady am
 * **Status** is judged as of your newest transaction, not today's date, so statements that are a few months old don't make everything look cancelled. A payment more than a short grace period overdue is shown as "Not seen lately" and left out of the totals.
 * Anything that isn't really recurring can be hidden with **Not recurring**; hidden items leave the totals and can be restored from the **Hidden** list.
 
+### Exports and reports
+* **Transactions: CSV or Excel.** The **Export** menu on the Transactions page downloads *every* transaction that matches your current filters (not just the visible page), oldest first. Excel keeps real dates and numbers so you can sort and sum, and has an "About this export" sheet recording the filters used. Up to 50,000 rows per export; narrow the filters beyond that.
+* **Spending report: PDF.** The **Report** button on the Dashboard and Analytics pages downloads a report for the chosen period (and statement): totals against the previous period, spending by category, top merchants, a month-by-month table for longer periods, and your budgets when a single month is selected. The numbers come from the same code as the dashboard, so they always agree. Amounts are written `Rs. 1,02,509` because the standard PDF fonts have no rupee sign.
+* **Safe to open in a spreadsheet.** A payee can name themselves `=HYPERLINK(...)`, and a spreadsheet would run that as a formula (CSV injection). In CSV, any text starting with `=`, `+`, `-`, `@`, tab or carriage return is prefixed with an apostrophe; in Excel those cells are stored with an explicit text type. Nothing in an export can execute.
+* Exports and reports are limited to 30 per hour per account. Files are generated on request and never stored.
+* When the website and API are on different domains, the API exposes the `Content-Disposition` header so the browser can name the downloaded file.
+
 ### Data model (MongoDB)
 `users`, `statement_uploads`, `raw_transactions`, `staged_transactions` (preview area), `categories`,
 `categorization_rules`, `budgets` (one per user and category; no category means the overall budget),
@@ -315,6 +325,7 @@ Also set `FRONTEND_URL` to your website's address so the links in emails point t
   | Signup | 5 per hour per IP |
   | Forgot password | 3 per hour per email |
   | Uploads | 60 per hour per user |
+  | Exports and reports | 30 per hour per user |
 
   When a limit is hit, the API returns HTTP 429 with a `Retry-After` header. Behind a proxy (Render, Nginx), set `TRUST_PROXY_HEADERS=true` so the real client IP is used.
 
@@ -340,6 +351,7 @@ notice, purpose, consent, user rights, a Grievance Officer, and the Data Protect
 * Passwords are hashed with bcrypt (12 rounds), and login responses take the same time whether or not an email exists.
 * Logs never include descriptions, amounts or VPAs, and a redacting filter masks VPAs and long digit runs as a backstop.
 * API responses send `Cache-Control: no-store`, `X-Frame-Options: DENY` and `nosniff`. CORS only allows the configured origins.
+* Exported spreadsheets are safe to open: text that could run as a spreadsheet formula is neutralised (see Exports and reports).
 * Secrets and the database URL come only from environment variables.
 * The session token is kept in `sessionStorage`, so it is cleared when the tab closes.
 

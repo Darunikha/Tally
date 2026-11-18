@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BarChart3, CalendarDays, CalendarRange, Layers, LineChart as LineIcon, PieChart as PieIcon, Scale, Sparkles, Store, Wallet } from 'lucide-react'
 import { CategoryDonut, DualLine, IncomeExpenseBars, RankBars, SimpleBars, TrendArea } from '../components/charts'
+import DownloadReportButton from '../components/DownloadReportButton'
 import PeriodPicker, { periodLabel } from '../components/layout/PeriodPicker'
 import { Card, CardHeader, Delta, EmptyState, ErrorState, LoadingBlock, PageHeader, Segmented } from '../components/ui'
 import { useFilters } from '../context/FilterContext'
@@ -31,7 +32,7 @@ export default function Analytics() {
 
   return (
     <div className="animate-fade-up">
-      <PageHeader title="Analytics" subtitle={`Detailed spending analysis · ${periodLabel(filter)}`} actions={<PeriodPicker />} />
+      <PageHeader title="Analytics" subtitle={`Detailed spending analysis · ${periodLabel(filter)}`} actions={<><DownloadReportButton params={params} /><PeriodPicker /></>} />
       {error ? <Card className="card-pad"><ErrorState message={error} onRetry={reload} /></Card> : empty ? (
         <Card className="card-pad"><EmptyState icon={BarChart3} title="Nothing to analyse for this period" message="Choose a different period or upload a statement." action={<Link to="/upload" className="btn-primary">Upload statement</Link>} /></Card>
       ) : (

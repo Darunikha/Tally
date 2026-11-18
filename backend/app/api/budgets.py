@@ -21,16 +21,10 @@ async def _debits(db, user_id, start: datetime, end: datetime, excluded: list) -
                                                     exclude_category_ids=excluded))
 
 
-@router.get("/budgets/status")
-async def budgets_status(month: int | None = Query(None, ge=1, le=12), year: int | None = Query(None, ge=1990, le=2100),
-                         user=Depends(current_user), db=Depends(db_dep)):
+async def compute_budget_status(db, uid, month: int | None, year: int | None) -> dict:
     """Progress of every budget for one calendar month (defaults to the current month in IST)."""
     today = today_ist()
-    if (month is None) != (year is None):
-        raise AppError("Provide both month and year", 400, "invalid_date")
     start = datetime(year or today.year, month or today.month, 1)
-    uid = user["_id"]
-
     excluded = await excluded_category_ids(db, uid)  # card bill payments are not spending once cards are tracked
     this_month = await _debits(db, uid, start, month_end(start), excluded)
     h_start, h_end = history_window(start)
@@ -40,6 +34,14 @@ async def budgets_status(month: int | None = Query(None, ge=1, le=12), year: int
     hist, hist_total = history_average(past)
     budgets = await db[BUDGETS].find({"user_id": uid}).to_list(None)
     return budget_status(budgets, spend, total, await category_map(db, uid), start, today, hist, hist_total)
+
+
+@router.get("/budgets/status")
+async def budgets_status(month: int | None = Query(None, ge=1, le=12), year: int | None = Query(None, ge=1990, le=2100),
+                         user=Depends(current_user), db=Depends(db_dep)):
+    if (month is None) != (year is None):
+        raise AppError("Provide both month and year", 400, "invalid_date")
+    return await compute_budget_status(db, user["_id"], month, year)
 
 
 @router.put("/budgets")
