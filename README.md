@@ -58,8 +58,8 @@ set `VITE_API_URL` at build time and add that origin to `CORS_ORIGINS` in the ba
 ### 3. Tests
 
 ```bash
-cd backend && python -m pytest        # 207 backend tests
-cd frontend && npm test               # 74 frontend tests (Vitest + React Testing Library)
+cd backend && python -m pytest        # 240 backend tests
+cd frontend && npm test               # 87 frontend tests (Vitest + React Testing Library)
 cd frontend && npm run coverage       # frontend coverage report → frontend/coverage/
 ```
 
@@ -70,6 +70,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * The full API: uploads, filters, rules, deletion and per-user isolation
 * Budgets: status thresholds, projections, suggestions, validation and per-user isolation
 * Credit cards: every issuer layout, purchase vs payment direction, detection that never claims a bank statement, and not double counting card payments
+* Recurring payments: cadence and amount rules (including what must *not* be flagged), price changes, status, summary and the API
 * Auth security: password reset, email verification, session revocation, rate limits and data export
 
 **Frontend.** These tests cover:
@@ -80,6 +81,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * The upload flow: file checks, the locked-PDF password prompt, duplicates and import
 * Budgets: progress states, creating, editing and deleting, month navigation and the dashboard card
 * Credit cards: the grouped format list, the card badge and note, and the dashboard note
+* Recurring payments: summary, upcoming list, group and status filters, hiding and restoring
 
 The API is mocked, so frontend tests need no running server.
 
@@ -129,9 +131,10 @@ backend/
     analytics/              pure calculation functions + insight generator
     anomaly_detection/      rule-based detectors
     (analytics/budgets.py   budget progress, projections and suggested limits)
+    (analytics/recurring.py recurring payment detection)
     services/               file validation, normalization/dedupe, import pipeline, summaries, queries
     utils/                  UPI extraction, merchant normalization, payment methods, IST dates, money
-    api/                    auth, statements, transactions, categories+rules, budgets, analytics+UPI, anomalies, settings
+    api/                    auth, statements, transactions, categories+rules, budgets, recurring, analytics+UPI, anomalies, settings
   sample_data/              SYNTHETIC statements: 5 bank CSV layouts, unknown layout, .xlsx, .xls,
                             HTML-.xls, 2 PDFs, a password-locked PDF (password DEMO1234), 4 credit card
                             CSV layouts, an unknown-issuer card CSV and a card PDF + generator
@@ -141,7 +144,7 @@ frontend/src/
   context/                  auth, global period/statement filter, toasts
   components/               layout (sidebar, top bar, period picker), UI kit, charts, transaction detail
   pages/                    Dashboard, Upload, Transactions, UPI, Analytics, Anomalies, Categories & Rules,
-                            Budgets, Statement History, Settings, Login/Register
+                            Budgets, Recurring, Statement History, Settings, Login/Register
 ```
 
 ---
@@ -253,9 +256,30 @@ per calendar month and compare against your debit transactions for that month:
 * The dashboard shows the budgets that need the most attention for the month you're viewing.
 * Deleting a category deletes its budget. Deleting your statements keeps your budgets.
 
+### Recurring payments
+The **Recurring** page lists subscriptions, bills, rent and SIPs that Tally finds in your own history, with what you
+commit to each month and year, and what is due in the next 30 days.
+
+A merchant is recurring when you pay it on a steady schedule **and** a steady amount:
+
+| Pattern | Needs |
+|---------|-------|
+| Monthly | at least 3 payments, gaps of about a month (26-35 days, so weekends and short months don't matter) |
+| Quarterly | at least 3 payments, about 3 months apart |
+| Yearly | at least 2 payments, about a year apart |
+| Weekly | at least 6 payments, a week apart |
+
+* **Fixed amounts** (Netflix, rent) must match within 3%. **Varying bills** (electricity) are still found when the schedule is very regular and the amount stays within about 35%; they are shown with a `~`.
+* **Price changes** are called out when the latest payment differs from the earlier ones (for example "Price up 23% (₹649 → ₹799)"), and the current price is the one shown.
+* **Frequent but irregular spending is not reported.** Food delivery, cabs and shopping are paid often but not on a schedule, so they don't qualify. A fixed subscription hiding among a merchant's other purchases (an app store, say) is still found by its amount.
+* **Not counted:** cash withdrawals and payments to your own credit cards.
+* **Status** is judged as of your newest transaction, not today's date, so statements that are a few months old don't make everything look cancelled. A payment more than a short grace period overdue is shown as "Not seen lately" and left out of the totals.
+* Anything that isn't really recurring can be hidden with **Not recurring**; hidden items leave the totals and can be restored from the **Hidden** list.
+
 ### Data model (MongoDB)
 `users`, `statement_uploads`, `raw_transactions`, `staged_transactions` (preview area), `categories`,
 `categorization_rules`, `budgets` (one per user and category; no category means the overall budget),
+`recurring_ignored` (merchants you marked as not recurring),
 `spending_summaries` (cached monthly roll-ups, always rebuildable) and `anomaly_reviews`.
 Every document carries `user_id`. Indexes cover date, upload, merchant, category, reference, and a
 unique `(user_id, fingerprint)`.

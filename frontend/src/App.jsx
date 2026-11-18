@@ -10,6 +10,7 @@ import { ForgotPassword, Login, Register, ResetPassword, VerifyEmail } from './p
 import { PrivacyPolicy, Terms } from './pages/Legal'
 import CategoriesRules from './pages/CategoriesRules'
 import Dashboard from './pages/Dashboard'
+import Recurring from './pages/Recurring'
 import SettingsPage from './pages/Settings'
 import StatementHistory from './pages/StatementHistory'
 import Transactions from './pages/Transactions'
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="anomalies" element={<Anomalies />} />
         <Route path="budgets" element={<Budgets />} />
+        <Route path="recurring" element={<Recurring />} />
         <Route path="categories" element={<CategoriesRules />} />
         <Route path="statements" element={<StatementHistory />} />
         <Route path="settings" element={<SettingsPage />} />

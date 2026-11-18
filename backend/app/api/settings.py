@@ -10,7 +10,7 @@ from app.core.errors import AppError
 from app.core.ratelimit import limit
 from app.core.security import hash_password, session_token, verify_password
 from app.database.mongo import (ANOMALY_REVIEWS, AUTH_TOKENS, BUDGETS, CATEGORIES, CATEGORIZATION_RULES, RAW_TRANSACTIONS,
-                                SPENDING_SUMMARIES, STAGED_TRANSACTIONS, STATEMENT_UPLOADS, USERS)
+                                RECURRING_IGNORED, SPENDING_SUMMARIES, STAGED_TRANSACTIONS, STATEMENT_UPLOADS, USERS)
 from app.schemas.requests import PasswordChange, ProfileUpdate
 from app.services.email import password_changed_email, send_email
 from app.services.statements import confirm_import, create_preview, delete_statement
@@ -105,6 +105,7 @@ async def _wipe(db, uid, keep_setup: bool):
         await db[CATEGORIZATION_RULES].delete_many({"user_id": uid})
         await db[CATEGORIES].delete_many({"user_id": uid})
         await db[BUDGETS].delete_many({"user_id": uid})
+        await db[RECURRING_IGNORED].delete_many({"user_id": uid})
         await db[AUTH_TOKENS].delete_many({"user_id": uid})
 
 
@@ -128,6 +129,7 @@ async def export_my_data(user=Depends(current_user), db=Depends(db_dep)):
         "categories": await all_of(CATEGORIES),
         "categorization_rules": await all_of(CATEGORIZATION_RULES),
         "budgets": await all_of(BUDGETS),
+        "recurring_ignored": await all_of(RECURRING_IGNORED),
         "anomaly_reviews": await all_of(ANOMALY_REVIEWS),
         "monthly_summaries": await all_of(SPENDING_SUMMARIES),
     }

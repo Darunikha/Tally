@@ -1,6 +1,6 @@
 import { Link, NavLink } from 'react-router-dom'
 import {
-  AlertTriangle, BarChart3, CloudUpload, History, House, List, PiggyBank, Settings, Tags, X, Zap,
+  AlertTriangle, BarChart3, CloudUpload, History, House, List, PiggyBank, Repeat, Settings, Tags, X, Zap,
 } from 'lucide-react'
 
 export const NAV = [
@@ -11,6 +11,7 @@ export const NAV = [
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/anomalies', label: 'Anomalies', icon: AlertTriangle },
   { to: '/budgets', label: 'Budgets', icon: PiggyBank },
+  { to: '/recurring', label: 'Recurring', icon: Repeat },
   { to: '/categories', label: 'Categories & Rules', icon: Tags },
   { to: '/statements', label: 'Statement History', icon: History },
   { to: '/settings', label: 'Settings', icon: Settings },
