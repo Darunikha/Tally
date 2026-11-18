@@ -18,6 +18,7 @@ SPENDING_SUMMARIES = "spending_summaries"
 ANOMALY_REVIEWS = "anomaly_reviews"
 RATE_LIMITS = "rate_limits"
 AUTH_TOKENS = "auth_tokens"  # password reset / email verification (hashed)
+BUDGETS = "budgets"
 
 _client = None
 _db: AsyncIOMotorDatabase | None = None
@@ -85,6 +86,8 @@ async def ensure_indexes(db) -> None:
         [("user_id", ASCENDING), ("period", ASCENDING), ("period_start", ASCENDING)], unique=True
     )
     await db[ANOMALY_REVIEWS].create_index([("user_id", ASCENDING), ("anomaly_key", ASCENDING)], unique=True)
+    # one budget per category per user; category_id None is the single "overall" budget
+    await db[BUDGETS].create_index([("user_id", ASCENDING), ("category_id", ASCENDING)], unique=True)
     # TTL indexes: MongoDB deletes these documents automatically once expires_at passes
     await db[RATE_LIMITS].create_index("expires_at", expireAfterSeconds=0)
     await db[AUTH_TOKENS].create_index("expires_at", expireAfterSeconds=0)

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import analytics, anomalies, auth, categories, settings, statements, transactions
+from app.api import analytics, anomalies, auth, budgets, categories, settings, statements, transactions
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import setup_logging
@@ -59,7 +59,7 @@ def create_app(use_lifespan: bool = True) -> FastAPI:
         return resp
 
     register_error_handlers(app)
-    for r in (auth, statements, transactions, categories, analytics, anomalies, settings):
+    for r in (auth, statements, transactions, categories, budgets, analytics, anomalies, settings):
         app.include_router(r.router, prefix="/api")
 
     @app.get("/api/health", tags=["health"])

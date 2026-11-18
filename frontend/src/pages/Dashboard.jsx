@@ -4,6 +4,7 @@ import {
   ArrowRight, BarChart3, CalendarClock, CloudUpload, Hash, History, Lightbulb, PieChart as PieIcon, Receipt,
   Scale, Store, Wallet, Zap,
 } from 'lucide-react'
+import BudgetsCard from '../components/BudgetProgress'
 import { CategoryDonut, IncomeExpenseBars, RankBars, TrendArea } from '../components/charts'
 import PeriodPicker, { periodLabel } from '../components/layout/PeriodPicker'
 import TransactionDetail, { MerchantAvatar, useCategories } from '../components/TransactionDetail'
@@ -48,7 +49,7 @@ function KeyInsight({ insights }) {
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const { params, filter, ready, version, dataChanged } = useFilters()
+  const { params, filter, ready, version, dataChanged, periods } = useFilters()
   const [range, setRange] = useState('1M')
   const [selected, setSelected] = useState(null)
   const navigate = useNavigate()
@@ -64,6 +65,11 @@ export default function Dashboard() {
   }, [range, data, params.upload_id])
   const longTrend = useApi(trendParams ? '/analytics/overview' : null, trendParams, [version])
   const trendData = range === '1M' ? data?.daily_trend : longTrend.data?.trend
+
+  // budgets are monthly: follow the picked month, otherwise the latest month with data
+  const budgetMonth = filter.mode === 'month' && filter.month ? { month: filter.month, year: filter.year }
+    : periods.latest ? { month: periods.latest.month, year: periods.latest.year } : undefined
+  const budgets = useApi(ready ? '/budgets/status' : null, budgetMonth, [version])
 
   const t = data?.totals
   const empty = data && t.transaction_count === 0
@@ -142,6 +148,8 @@ export default function Dashboard() {
                 </Card>
                 <KeyInsight insights={data?.insights} />
               </div>
+
+              <BudgetsCard data={budgets.data} loading={budgets.loading} error={budgets.error} />
 
               <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
                 <Card className="card-pad">

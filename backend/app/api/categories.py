@@ -5,7 +5,7 @@ from app.api.deps import current_user, db_dep
 from app.categorization.defaults import OTHER_CATEGORY
 from app.categorization.engine import InvalidRuleError, validate_pattern
 from app.core.errors import AppError
-from app.database.mongo import CATEGORIES, CATEGORIZATION_RULES, RAW_TRANSACTIONS
+from app.database.mongo import BUDGETS, CATEGORIES, CATEGORIZATION_RULES, RAW_TRANSACTIONS
 from app.models.documents import category_doc, rule_doc
 from app.schemas.requests import CategoryCreate, CategoryUpdate, RuleCreate, RuleTest, RuleUpdate
 from app.services.categories import other_category_id, recategorize_all
@@ -82,6 +82,7 @@ async def delete_category(category_id: str, user=Depends(current_user), db=Depen
                   "needs_review": True, "matched_rule_id": None}},
     )
     rules = await db[CATEGORIZATION_RULES].delete_many({"user_id": user["_id"], "category_id": cid})
+    await db[BUDGETS].delete_many({"user_id": user["_id"], "category_id": cid})
     await db[CATEGORIES].delete_one({"_id": cid})
     await refresh_summaries(db, user["_id"])
     return {"moved_transactions": moved.modified_count, "deleted_rules": rules.deleted_count}

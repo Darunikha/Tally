@@ -5,6 +5,7 @@ import { useAuth } from './context/AuthContext'
 import { FilterProvider } from './context/FilterContext'
 import Analytics from './pages/Analytics'
 import Anomalies from './pages/Anomalies'
+import Budgets from './pages/Budgets'
 import { ForgotPassword, Login, Register, ResetPassword, VerifyEmail } from './pages/Auth'
 import { PrivacyPolicy, Terms } from './pages/Legal'
 import CategoriesRules from './pages/CategoriesRules'
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="upi" element={<UpiAnalysis />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="anomalies" element={<Anomalies />} />
+        <Route path="budgets" element={<Budgets />} />
         <Route path="categories" element={<CategoriesRules />} />
         <Route path="statements" element={<StatementHistory />} />
         <Route path="settings" element={<SettingsPage />} />

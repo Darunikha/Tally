@@ -36,7 +36,8 @@ describe('tokenStore', () => {
     tokenStore.set('abc')
     expect(tokenStore.get()).toBe('abc')
     expect(sessionStorage.getItem('tally_token')).toBe('abc')
-    expect(localStorage.getItem('tally_token')).toBeNull()
+    // Node 25+ shadows jsdom's localStorage with its own (unavailable) one, so only check where it exists
+    if (globalThis.localStorage) expect(globalThis.localStorage.getItem('tally_token')).toBeNull()
     tokenStore.clear()
     expect(tokenStore.get()).toBeNull()
   })

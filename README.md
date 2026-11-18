@@ -58,8 +58,8 @@ set `VITE_API_URL` at build time and add that origin to `CORS_ORIGINS` in the ba
 ### 3. Tests
 
 ```bash
-cd backend && python -m pytest        # 150 backend tests
-cd frontend && npm test               # 54 frontend tests (Vitest + React Testing Library)
+cd backend && python -m pytest        # 165 backend tests
+cd frontend && npm test               # 68 frontend tests (Vitest + React Testing Library)
 cd frontend && npm run coverage       # frontend coverage report → frontend/coverage/
 ```
 
@@ -68,6 +68,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Running-balance reconciliation for each bank
 * UPI and merchant normalization, regex categorization, duplicate detection, anomaly rules and analytics math
 * The full API: uploads, filters, rules, deletion and per-user isolation
+* Budgets: status thresholds, projections, suggestions, validation and per-user isolation
 * Auth security: password reset, email verification, session revocation, rate limits and data export
 
 **Frontend.** These tests cover:
@@ -76,6 +77,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * UI components
 * The sign-in, signup (consent), forgot/reset password and email verification pages
 * The upload flow: file checks, the locked-PDF password prompt, duplicates and import
+* Budgets: progress states, creating, editing and deleting, month navigation and the dashboard card
 
 The API is mocked, so frontend tests need no running server.
 
@@ -123,9 +125,10 @@ backend/
     categorization/         default categories/rules + regex rule engine
     analytics/              pure calculation functions + insight generator
     anomaly_detection/      rule-based detectors
+    (analytics/budgets.py   budget progress, projections and suggested limits)
     services/               file validation, normalization/dedupe, import pipeline, summaries, queries
     utils/                  UPI extraction, merchant normalization, payment methods, IST dates, money
-    api/                    auth, statements, transactions, categories+rules, analytics+UPI, anomalies, settings
+    api/                    auth, statements, transactions, categories+rules, budgets, analytics+UPI, anomalies, settings
   sample_data/              SYNTHETIC statements: 5 bank CSV layouts, unknown layout, .xlsx, .xls,
                             HTML-.xls, 2 PDFs, a password-locked PDF (password DEMO1234) + generator
   tests/
@@ -134,7 +137,7 @@ frontend/src/
   context/                  auth, global period/statement filter, toasts
   components/               layout (sidebar, top bar, period picker), UI kit, charts, transaction detail
   pages/                    Dashboard, Upload, Transactions, UPI, Analytics, Anomalies, Categories & Rules,
-                            Statement History, Settings, Login/Register
+                            Budgets, Statement History, Settings, Login/Register
 ```
 
 ---
@@ -216,9 +219,26 @@ These are indicators for review, never fraud verdicts. Every baseline comes from
 Sensitivity (low / medium / high) and the large-transaction alert are set in **Settings**. You can mark
 anomalies as reviewed, dismiss them, or reopen them.
 
+### Budgets
+Set a monthly limit per category, plus an optional overall limit, on the **Budgets** page. Budgets are
+per calendar month and compare against your debit transactions for that month:
+
+| Status | Meaning |
+|--------|---------|
+| On track | below your alert level |
+| Nearly there | at or above your alert level (50-100%, default 80%) |
+| Over budget | spending is above the limit |
+
+* The page opens on your latest month with data, and you can step back through earlier months.
+* In the current month, once at least 7 days have passed, Tally projects where you'll finish and tells you if you're on pace to go over. It also shows roughly how much you can spend per day for the rest of the month.
+* Suggested limits come from your average spending in the previous three months that had data.
+* The dashboard shows the budgets that need the most attention for the month you're viewing.
+* Deleting a category deletes its budget. Deleting your statements keeps your budgets.
+
 ### Data model (MongoDB)
 `users`, `statement_uploads`, `raw_transactions`, `staged_transactions` (preview area), `categories`,
-`categorization_rules`, `spending_summaries` (cached monthly roll-ups, always rebuildable) and `anomaly_reviews`.
+`categorization_rules`, `budgets` (one per user and category; no category means the overall budget),
+`spending_summaries` (cached monthly roll-ups, always rebuildable) and `anomaly_reviews`.
 Every document carries `user_id`. Indexes cover date, upload, merchant, category, reference, and a
 unique `(user_id, fingerprint)`.
 

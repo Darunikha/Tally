@@ -138,3 +138,16 @@ def rule_doc(
         "is_default": is_default,
         "created_at": utcnow(),
     }
+
+
+def budget_doc(user_id: ObjectId, category_id: ObjectId | None, monthly_limit: float, alert_threshold: int) -> dict:
+    now = utcnow()
+    return {
+        "_id": ObjectId(),
+        "user_id": user_id,
+        "category_id": category_id,  # None = overall monthly budget
+        "monthly_limit": monthly_limit,
+        "alert_threshold": alert_threshold,
+        "created_at": now,
+        "updated_at": now,
+    }

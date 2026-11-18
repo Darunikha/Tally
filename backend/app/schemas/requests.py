@@ -124,3 +124,9 @@ class ConfirmImport(BaseModel):
 
 class AnomalyReview(BaseModel):
     status: Literal["reviewed", "dismissed", "open"]
+
+
+class BudgetUpsert(BaseModel):
+    category_id: str | None = None  # None = overall monthly budget
+    monthly_limit: float = Field(gt=0, le=100_000_000)
+    alert_threshold: int = Field(default=80, ge=50, le=100)
