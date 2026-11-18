@@ -189,6 +189,9 @@ def read_text_lines(text: str, source: str = "pdf-text") -> StatementTable:
     """Parse statements without detectable tables: one transaction per line starting with a date,
     ending in [amount] [balance]. Debit vs credit is inferred from the running balance movement,
     falling back to Dr/Cr markers and keywords."""
+    from app.parsers.adapters.cards import CARD_STATEMENT_WORDS  # local import: adapters import this package
+
+    card_mode = bool(CARD_STATEMENT_WORDS.search(text))
     rows: list[list[str]] = []
     prev_balance = None
     m = _OPENING.search(text)
@@ -206,6 +209,16 @@ def read_text_lines(text: str, source: str = "pdf-text") -> StatementTable:
                 last_row[1] = f"{last_row[1]} {line}"  # wrapped narration
             continue
         rest = dm.group(2)
+        if card_mode:
+            # a card line is "<date> [time] <merchant ...> [reward points] <amount>[ Cr]": one amount, no balance,
+            # so keep it raw and let the card adapter read the Cr marker (no running balance to infer from)
+            am = _TRAIL_AMT.search(rest)
+            if not am:
+                continue
+            desc = re.sub(r"^\d{1,2}:\d{2}(?::\d{2})?\s+", "", rest[: am.start()].strip())
+            last_row = [dm.group(1), desc, am.group(1).strip()]
+            rows.append(last_row)
+            continue
         amounts: list[str] = []
         while len(amounts) < 3:
             am = _TRAIL_AMT.search(rest)
@@ -242,6 +255,8 @@ def read_text_lines(text: str, source: str = "pdf-text") -> StatementTable:
 
     if not rows:
         raise ParseError("No transaction lines were recognised in this PDF.")
+    if card_mode:
+        return StatementTable(headers=["Date", "Transaction Details", "Amount"], rows=rows, text=text[:5000], source=source)
     return StatementTable(
         headers=["Date", "Description", "Debit", "Credit", "Balance"], rows=rows, text=text[:5000], source=source
     )

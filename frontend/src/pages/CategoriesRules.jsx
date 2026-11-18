@@ -169,10 +169,11 @@ export default function CategoriesRules() {
                   <div className="flex items-center gap-2"><p className="truncate font-bold text-ink">{c.name}</p>{!c.is_default && <Badge tone="navy">Custom</Badge>}</div>
                   <p className="truncate text-xs text-ink-muted">{c.description || '—'}</p>
                   <p className="mt-1 text-xs text-ink-soft">{c.transaction_count} transaction{c.transaction_count === 1 ? "" : "s"} · {c.rule_count} rule{c.rule_count === 1 ? "" : "s"}</p>
+                  {c.excluded_from_totals && <p className="mt-1 text-xs text-ink-muted">Once you add a credit card statement, these are left out of income and spending so nothing is counted twice.</p>}
                 </div>
                 <div className="flex gap-1">
                   <button className="rounded-lg p-1.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => setCatForm(c)} aria-label={`Edit ${c.name}`}><Pencil className="h-4 w-4" /></button>
-                  {c.name !== 'Other' && <button className="rounded-lg p-1.5 text-ink-muted hover:bg-danger-50 hover:text-danger-500" onClick={() => setDel({ kind: 'category', item: c })} aria-label={`Delete ${c.name}`}><Trash2 className="h-4 w-4" /></button>}
+                  {c.name !== 'Other' && !c.excluded_from_totals && <button className="rounded-lg p-1.5 text-ink-muted hover:bg-danger-50 hover:text-danger-500" onClick={() => setDel({ kind: 'category', item: c })} aria-label={`Delete ${c.name}`}><Trash2 className="h-4 w-4" /></button>}
                 </div>
               </Card>
             ))}

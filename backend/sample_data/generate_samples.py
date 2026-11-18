@@ -338,7 +338,93 @@ def gen_locked_pdf():
                          getSampleStyleSheet()["Heading2"]), tbl])
 
 
+# ---------------------------------------------------------------- credit cards (SYNTHETIC)
+CARD_MERCHANTS = [  # (statement text as issuers print it, min, max, weight)
+    ("SWIGGY BANGALORE IN", 180, 650, 9),
+    ("ZOMATO GURGAON IN", 200, 700, 6),
+    ("AMAZON PAY INDIA PRIVATE LIMITED MUMBAI IN", 299, 6500, 5),
+    ("FLIPKART INTERNET PRIVATE BANGALORE IN", 499, 8999, 3),
+    ("UBER INDIA SYSTEMS PVT LTD BANGALORE IN", 120, 480, 5),
+    ("BIGBASKET INNOVATIVE RETAIL BANGALORE IN", 600, 2400, 3),
+    ("INDIAN OIL PETROL PUMP PUNE IN", 500, 3000, 2),
+    ("IRCTC NEW DELHI IN", 450, 2800, 1),
+    ("NETFLIX.COM SINGAPORE SG", 649, 649, 1),
+    ("APOLLO PHARMACY CHENNAI IN", 150, 1400, 2),
+    ("BOOKMYSHOW MUMBAI IN", 300, 1200, 1),
+]
+
+
+def build_card_transactions(seed: int = 21, start: date = date(2025, 8, 1)):
+    """One month of card activity: purchases, fees with GST, a refund and the bill payment received."""
+    rng = random.Random(seed)
+    names = [m[0] for m in CARD_MERCHANTS]
+    weights = [m[3] for m in CARD_MERCHANTS]
+    rows = []  # (date, description, amount, is_credit)
+    for day in range(1, 29):
+        for _ in range(rng.choice([0, 1, 1, 2])):
+            name = rng.choices(names, weights)[0]
+            lo, hi = next((m[1], m[2]) for m in CARD_MERCHANTS if m[0] == name)
+            rows.append((start.replace(day=day), name, float(rng.randint(lo, hi)), False))
+    rows.append((start.replace(day=3), "ANNUAL FEE", 499.00, False))
+    rows.append((start.replace(day=3), "IGST-CGST @18%", 89.82, False))
+    rows.append((start.replace(day=20), "FINANCE CHARGES", 312.40, False))
+    rows.append((start.replace(day=14), "REFUND AMAZON PAY INDIA PRIVATE LIMITED MUMBAI IN", 1299.00, True))
+    rows.append((start.replace(day=9), "PAYMENT RECEIVED - THANK YOU", 40000.00, True))
+    return sorted(rows, key=lambda r: (r[0], r[1]))
+
+
+def gen_cards():
+    data = build_card_transactions()
+    hdr = ["HDFC Bank Credit Cards", "Credit Card Statement for card ending 4321 (SYNTHETIC)", ""]
+    rows = [[f"{d:%d/%m/%Y} {9 + i % 12:02d}:{(i * 7) % 60:02d}:00", desc, money(a) + (" Cr" if cr else "")]
+            for i, (d, desc, a, cr) in enumerate(data)]
+    write_csv(OUT / "hdfc_credit_card.csv", [[h] for h in hdr], ["Date", "Transaction Description", "Amount (in Rs.)"], rows)
+
+    rows = [[f"{d:%d/%m/%Y}", str(1100000 + i), desc, str(int(a // 100)) if not cr else "0", "0", money(a), "CR" if cr else ""]
+            for i, (d, desc, a, cr) in enumerate(data)]
+    for r in rows:
+        if "PAYMENT RECEIVED" in r[2]:
+            r[2] = "BBPS Payment received"
+    write_csv(OUT / "icici_credit_card.csv", [], ["Date", "SerNo.", "Transaction Details", "Reward Points", "Intl.#", "Amount (in Rs)", "BillingAmountSign"], rows)
+
+    rows = [[f"{d:%d %b %y}", desc, money(a) + (" C" if cr else " D")] for d, desc, a, cr in data]
+    write_csv(OUT / "sbi_credit_card.csv", [["SBI Card - Statement of Account (SYNTHETIC)"], ["Card Number XXXX XXXX XXXX 7788"], []],
+              ["Date", "Transaction Details", "Amount ( ₹ )"], rows)
+
+    cats = ["FOOD", "SHOPPING", "TRAVEL", "FUEL", "ENTERTAINMENT", "HEALTH", "UTILITIES"]
+    rows = [[f"{d:%d/%m/%Y}", desc, cats[i % len(cats)], money(a) + (" Cr" if cr else " Dr")] for i, (d, desc, a, cr) in enumerate(data)]
+    write_csv(OUT / "axis_credit_card.csv", [["Axis Bank Credit Card Statement (SYNTHETIC)"], []],
+              ["Date", "Transaction Details", "Merchant Category", "Amount (Rs.)"], rows)
+
+    # no issuer name anywhere: only the format list (generic_card) can tell this is a card
+    rows = [[f"{d:%Y-%m-%d}", desc, money(a) + (" Cr" if cr else "")] for d, desc, a, cr in data]
+    write_csv(OUT / "card_unknown_issuer.csv", [], ["Posting Date", "Description", "Amount"], rows)
+
+
+def gen_card_pdf():
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except ImportError:
+        return
+    data = build_card_transactions()
+    c = canvas.Canvas(str(OUT / "credit_card_statement.pdf"), pagesize=A4)
+    y = 800
+    c.setFont("Helvetica", 9)
+    for line in ("Sample Issuer Credit Card Statement (SYNTHETIC)", "Statement Period: 01/08/2025 to 31/08/2025",
+                 "Credit Limit: 2,00,000.00    Total Amount Due: 45,230.00    Payment Due Date: 18/09/2025"):
+        c.drawString(40, y, line); y -= 14
+    y -= 8
+    for d, desc, a, cr in data:
+        if y < 50:
+            c.showPage(); c.setFont("Helvetica", 9); y = 800
+        c.drawString(40, y, f"{d:%d/%m/%Y}  {desc[:62]}")
+        c.drawRightString(550, y, money(a) + (" Cr" if cr else ""))
+        y -= 13
+    c.save()
+
+
 if __name__ == "__main__":
     gen_hdfc(); gen_icici(); sbi = gen_sbi(); gen_axis(); gen_kotak(); gen_unknown(); gen_pdfs(sbi)
-    gen_excel(); gen_locked_pdf()
+    gen_excel(); gen_locked_pdf(); gen_cards(); gen_card_pdf()
     print("Synthetic samples written to", OUT)

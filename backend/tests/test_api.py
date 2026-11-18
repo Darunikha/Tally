@@ -34,7 +34,7 @@ async def test_auth_flow(client):
 
 async def test_seeded_categories_and_rules(client, auth):
     cats = (await client.get("/api/categories", headers=auth)).json()
-    assert len(cats) == 16 and {"Food & Dining", "Other", "Income"} <= {c["name"] for c in cats}
+    assert len(cats) == 17 and {"Food & Dining", "Other", "Income", "Credit Card Payments"} <= {c["name"] for c in cats}
     rules = (await client.get("/api/rules", headers=auth)).json()
     assert len(rules) > 15 and rules[0]["priority"] >= rules[-1]["priority"]
 

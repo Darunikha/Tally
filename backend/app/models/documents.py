@@ -51,6 +51,7 @@ def upload_doc(user_id: ObjectId, file_name: str, file_type: str, file_hash: str
         "total_credits": 0.0,
         "date_range": {"start": None, "end": None},
         "parser_used": None,
+        "account_type": "bank",  # "bank" | "credit_card"
         "warnings": [],
         "error": None,
         "is_demo": False,
@@ -76,6 +77,7 @@ def transaction_doc(
     bank_name: str,
     raw_bank_fields: dict,
     fingerprint: str,
+    account_type: str = "bank",
 ) -> dict:
     now = utcnow()
     ttype = "credit" if credit_amount > 0 else "debit"
@@ -103,6 +105,7 @@ def transaction_doc(
         "needs_review": True,
         "notes": "",
         "bank_name": bank_name,
+        "account_type": account_type,
         "raw_bank_fields": raw_bank_fields,
         "fingerprint": fingerprint,
         "created_at": now,
@@ -110,7 +113,8 @@ def transaction_doc(
     }
 
 
-def category_doc(user_id: ObjectId, name: str, color: str, description: str = "", is_default: bool = False) -> dict:
+def category_doc(user_id: ObjectId, name: str, color: str, description: str = "", is_default: bool = False,
+                excluded_from_totals: bool = False) -> dict:
     return {
         "_id": ObjectId(),
         "user_id": user_id,
@@ -118,6 +122,7 @@ def category_doc(user_id: ObjectId, name: str, color: str, description: str = ""
         "description": description,
         "color": color,
         "is_default": is_default,
+        "excluded_from_totals": excluded_from_totals,  # e.g. credit card bill payments: not income or spending
         "created_at": utcnow(),
     }
 

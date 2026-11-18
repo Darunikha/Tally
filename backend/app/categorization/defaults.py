@@ -17,17 +17,24 @@ DEFAULT_CATEGORIES: list[tuple[str, str, str]] = [
     ("Travel", "#7D8FB3", "Flights, trains, buses and hotels"),
     ("Subscriptions", "#A07AA8", "Streaming and recurring digital services"),
     ("Transfers", "#94A3B8", "Transfers to people and own accounts"),
+    ("Credit Card Payments", "#7C8798", "Bills paid to your credit cards - left out of spending and income so nothing is counted twice"),
     ("Investments", "#3F6F8F", "Mutual funds, stocks, SIPs and insurance"),
     ("Income", "#2F7D55", "Salary, interest and other income"),
     ("Other", "#B8B2A7", "Uncategorized - needs review"),
 ]
 
 OTHER_CATEGORY = "Other"
+CARD_PAYMENTS_CATEGORY = "Credit Card Payments"  # flagged excluded_from_totals once a card statement is imported
+
+# bump when DEFAULT_CATEGORIES / DEFAULT_RULES gain entries; existing accounts are topped up once (see ensure_defaults)
+DEFAULTS_VERSION = 2
+ADDED_IN_V2 = {"Credit card payment received", "Credit card bill payment", "Credit card fees & interest"}
 
 # rule_name, regex (matched against "MERCHANT | DESCRIPTION" uppercased), category, priority, applies_to
 # Higher priority wins. Merchant-specific rules sit above generic keyword rules.
 DEFAULT_RULES: list[tuple[str, str, str, int, str]] = [
     ("Salary", r"SALARY|\bSAL\b|PAYROLL", "Income", 100, "credit"),
+    ("Credit card payment received", r"PAYMENT\s*(RECEIVED|RECD)|PAYMENT\s*-?\s*THANK\s*YOU|BBPS\s*PAYMENT|AUTOPAY\s*PAYMENT|CREDIT\s*CARD\s*PAYMENT", "Credit Card Payments", 96, "credit"),
     ("Interest", r"INTEREST|\bINT\.?\s*(PD|CR)\b|BANK INTEREST", "Income", 95, "credit"),
     ("Dividends", r"DIVIDEND|\bDIV\b", "Income", 95, "credit"),
     ("Subscriptions - streaming", r"NETFLIX|SPOTIFY|HOTSTAR|AMAZON PRIME|PRIME VIDEO|YOUTUBE|APPLE|GOOGLE PLAY|SONYLIV|ZEE5|JIOCINEMA", "Subscriptions", 90, "debit"),
@@ -41,7 +48,8 @@ DEFAULT_RULES: list[tuple[str, str, str, int, str]] = [
     ("Healthcare", r"APOLLO|PHARMEASY|1MG|NETMEDS|PRACTO|PHARMACY|MEDICAL|HOSPITAL|CLINIC|DIAGNOSTIC|LAB\b|CHEMIST", "Healthcare", 70, "debit"),
     ("Education", r"COURSERA|UDEMY|BYJU|UNACADEMY|SCHOOL|COLLEGE|UNIVERSITY|TUITION|EXAM FEE", "Education", 70, "debit"),
     ("Utilities - power, phone, internet", r"BESCOM|TNEB|TANGEDCO|MSEDCL|BSES|TATA POWER|ADANI ELEC|ELECTRICITY|AIRTEL|\bJIO\b|VODAFONE|\bVI\b|BSNL|BROADBAND|FIBERNET|ACT FIBER|\bGAS\b|MAHANAGAR GAS|INDANE|WATER BOARD|BWSSB|DTH|TATA PLAY|RECHARGE", "Bills & Utilities", 70, "debit"),
-    ("Credit card bill", r"\bCRED\b|CREDIT CARD (BILL|PAYMENT)|CC PAYMENT|BILLDESK.*CARD", "Bills & Utilities", 65, "debit"),
+    ("Credit card fees & interest", r"FINANCE\s*CHARGES?|INTEREST\s*CHARGE|LATE\s*(PAYMENT\s*)?(FEE|CHARGE)|OVER\s*LIMIT|CASH\s*ADVANCE\s*FEE|FUEL\s*SURCHARGE|\b[ICS]GST\b|ANNUAL\s*(MEMBERSHIP\s*)?FEE|JOINING\s*FEE|EMI\s*PROCESSING", "Bills & Utilities", 72, "debit"),
+    ("Credit card bill payment", r"\bCRED\b|CREDIT\s*CARD|\bCC\s*(PAYMENT|BILL|PAY)\b|CARD\s*(PAYMENT|BILL)|BILLDESK.*CARD|CARDPAY|\b(HDFC|ICICI|SBI|AXIS|KOTAK|AMEX|IDFC|RBL|AU)\s*(BANK\s*)?CARDS?\b", "Credit Card Payments", 68, "debit"),
     ("Investments", r"ZERODHA|GROWW|UPSTOX|KUVERA|COIN BY|MUTUAL FUND|\bMF\b|\bSIP\b|\bNSE\b|\bBSE\b|\bPPF\b|\bNPS\b|\bLIC\b|ICCL|INDIAN CLEARING", "Investments", 65, "debit"),
     ("Rent", r"\bRENT\b|HOUSE RENT|NOBROKER|MAINTENANCE CHARGES|SOCIETY MAINT", "Rent", 60, "debit"),
     ("Bank charges", r"BANK CHARGES|SMS ALERT|\bAMC\b|ANNUAL FEE|CHRG|DEBIT CARD FEE|\bGST\b", "Bills & Utilities", 40, "debit"),

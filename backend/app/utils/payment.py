@@ -5,7 +5,7 @@ from app.utils.merchant import name_tokens, normalize_merchant
 from app.utils.upi import is_upi
 
 PAYMENT_METHODS = [
-    "UPI", "Card", "NEFT", "IMPS", "RTGS", "Net Banking", "Auto Debit", "ATM/Cash", "Cheque",
+    "UPI", "Card", "Credit Card", "NEFT", "IMPS", "RTGS", "Net Banking", "Auto Debit", "ATM/Cash", "Cheque",
     "Interest", "Bank Charges", "Other",
 ]
 

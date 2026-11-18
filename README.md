@@ -1,7 +1,7 @@
 # Tally – Smart Bank Statement & UPI Spend Analyzer
 
-Upload bank statements (CSV, Excel or PDF, including password-protected e-statements) from different
-Indian banks. Tally parses them with bank-specific
+Upload bank and credit card statements (CSV, Excel or PDF, including password-protected e-statements) from
+different Indian banks. Tally parses them with bank-specific
 adapters, recognises UPI merchants, categorises spending with a regex rule engine you control, flags
 unusual activity, and turns everything into a dashboard.
 
@@ -58,8 +58,8 @@ set `VITE_API_URL` at build time and add that origin to `CORS_ORIGINS` in the ba
 ### 3. Tests
 
 ```bash
-cd backend && python -m pytest        # 165 backend tests
-cd frontend && npm test               # 68 frontend tests (Vitest + React Testing Library)
+cd backend && python -m pytest        # 207 backend tests
+cd frontend && npm test               # 74 frontend tests (Vitest + React Testing Library)
 cd frontend && npm run coverage       # frontend coverage report → frontend/coverage/
 ```
 
@@ -69,6 +69,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * UPI and merchant normalization, regex categorization, duplicate detection, anomaly rules and analytics math
 * The full API: uploads, filters, rules, deletion and per-user isolation
 * Budgets: status thresholds, projections, suggestions, validation and per-user isolation
+* Credit cards: every issuer layout, purchase vs payment direction, detection that never claims a bank statement, and not double counting card payments
 * Auth security: password reset, email verification, session revocation, rate limits and data export
 
 **Frontend.** These tests cover:
@@ -78,6 +79,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * The sign-in, signup (consent), forgot/reset password and email verification pages
 * The upload flow: file checks, the locked-PDF password prompt, duplicates and import
 * Budgets: progress states, creating, editing and deleting, month navigation and the dashboard card
+* Credit cards: the grouped format list, the card badge and note, and the dashboard note
 
 The API is mocked, so frontend tests need no running server.
 
@@ -121,6 +123,7 @@ backend/
       readers.py            CSV/PDF → table (header detection, pdfplumber, PDF passwords, OCR, text-line fallback)
       excel.py              .xlsx / .xls / HTML-.xls / text-.xls → table (zip-bomb + row limits)
       adapters/banks.py     HDFC, ICICI, SBI, Axis, Kotak adapters + generic fallback
+      adapters/cards.py     credit card adapters: HDFC, ICICI, SBI Card, Axis + generic card
       registry.py           bank identification and dispatch
     categorization/         default categories/rules + regex rule engine
     analytics/              pure calculation functions + insight generator
@@ -130,7 +133,8 @@ backend/
     utils/                  UPI extraction, merchant normalization, payment methods, IST dates, money
     api/                    auth, statements, transactions, categories+rules, budgets, analytics+UPI, anomalies, settings
   sample_data/              SYNTHETIC statements: 5 bank CSV layouts, unknown layout, .xlsx, .xls,
-                            HTML-.xls, 2 PDFs, a password-locked PDF (password DEMO1234) + generator
+                            HTML-.xls, 2 PDFs, a password-locked PDF (password DEMO1234), 4 credit card
+                            CSV layouts, an unknown-issuer card CSV and a card PDF + generator
   tests/
 frontend/src/
   api/client.js             axios instance, auth header, error messages
@@ -169,13 +173,27 @@ confirm → insert into raw_transactions (duplicates skipped) → refresh spendi
 
 Password-protected **Excel** files aren't supported. Users are told to save an unlocked copy, or to download a CSV or PDF instead.
 
+### Credit card statements
+Pick your card from the **Statement format** list, or leave it on auto-detect. HDFC, ICICI, SBI Card and Axis
+statements are recognised automatically; any other issuer works through **Other credit card**.
+
+A card statement reads differently from a bank statement, and Tally handles three things for you:
+
+* **Direction.** A plain amount is a purchase (spending). A payment or refund is marked `Cr`/`C`, a `CR` flag column or a minus sign, and is read as a credit. There is no running balance on a card.
+* **Detection is careful.** A file with only generic `Date / Details / Amount` headers and no issuer name is not guessed to be a card, because getting the sign wrong would turn every purchase into income. If a file looks like that, Tally warns you and asks you to pick the card from the list.
+* **No double counting.** You pay your card from the bank, so that payment appears twice: as a debit in the bank statement and as a credit on the card. Both are filed under **Credit Card Payments**. Once you have imported a card statement, that category is left out of income and spending everywhere (dashboard, analytics, budgets, anomalies), because the card's own purchases are already counted. Until then, a card bill paid from the bank still counts as spending. They always remain visible on the Transactions page, and the dashboard says how many are left out.
+
+Card merchants are cleaned of the trailing city and country (`SWIGGY BANGALORE IN` becomes **Swiggy**). Annual fees, finance charges and GST on a card are real charges and are filed under Bills & Utilities, not as card payments.
+
+Accounts created before card support get the new category and rules added automatically on their next import (once, so changes you make later are never undone). Transactions you imported earlier keep their category until you run **Apply rules** on the Categories page.
+
 ### Adding a bank
 Create a subclass of `BaseBankParser` in `parsers/adapters/banks.py`, declaring:
 * `column_aliases`: canonical field → that bank's header names
 * `signature_headers` and `text_markers`: used for detection
 * optionally, a custom `extract_upi`
 
-Add it to `BANK_PARSERS`. Nothing else changes. The adapters already cover the main layout styles:
+Add it to `BANK_PARSERS`. Nothing else changes. For a card issuer, subclass `CreditCardParser` in `adapters/cards.py` instead and add it to `CARD_PARSERS`. The adapters already cover the main layout styles:
 * Separate debit and credit columns: HDFC, ICICI, SBI, Axis
 * A single amount with a Dr/Cr flag: Kotak
 * A signed single amount: generic

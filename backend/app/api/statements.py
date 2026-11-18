@@ -27,7 +27,7 @@ def _with_category(docs: list[dict], cats: dict) -> list[dict]:
 
 @router.get("/banks")
 async def supported_banks(_=Depends(current_user)):
-    return [{"key": p.key, "bank_name": p.bank_name} for p in all_parsers()]
+    return [{"key": p.key, "bank_name": p.bank_name, "account_type": p.account_type} for p in all_parsers()]
 
 
 @router.post("/preview", status_code=201)

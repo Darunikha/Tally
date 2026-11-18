@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { foldCategories, SERIES } from './charts'
+import CardPaymentsNote from './CardPaymentsNote'
 import { ConfirmDialog, Delta, Pagination, SeverityBadge, TypeBadge } from './ui'
 
 const cat = (name, amount, percentage, count = 1) => ({ name, amount, percentage, count, color: '#123456' })
@@ -78,5 +79,22 @@ describe('ConfirmDialog', () => {
   it('renders nothing when closed', () => {
     render(<ConfirmDialog open={false} title="x" message="y" onConfirm={() => {}} onClose={() => {}} />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('CardPaymentsNote', () => {
+  it('says nothing when no payments are left out', () => {
+    const { container } = render(<CardPaymentsNote count={0} />)
+    expect(container).toBeEmptyDOMElement()
+    render(<CardPaymentsNote />)
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+  it('explains the difference between dashboard totals and the transaction list', () => {
+    const { rerender } = render(<CardPaymentsNote count={1} />)
+    expect(screen.getByRole('note')).toHaveTextContent('1 credit card bill payment is left out of income and spending')
+    expect(screen.getByRole('note')).toHaveTextContent('see it on the Transactions page')
+    rerender(<CardPaymentsNote count={3} />)
+    expect(screen.getByRole('note')).toHaveTextContent('3 credit card bill payments are left out')
+    expect(screen.getByRole('note')).toHaveTextContent('see them on the Transactions page')
   })
 })

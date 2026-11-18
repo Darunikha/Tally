@@ -16,6 +16,9 @@ const EXTENSIONS = ['csv', 'pdf', 'xls', 'xlsx']
 const ACCEPT = '.csv,.pdf,.xls,.xlsx,text/csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const PASSWORD_ERRORS = ['pdf_password_required', 'pdf_password_incorrect']
 const extOf = (name = '') => name.split('.').pop().toLowerCase()
+const FORMAT_LABELS = { generic: 'Other bank (generic parser)', generic_card: 'Other credit card' }
+const formatLabel = (b) => FORMAT_LABELS[b.key] || b.bank_name
+const isCard = (b) => b.account_type === 'credit_card'
 
 function Step({ n, label, state }) {
   const cls = state === 'done' ? 'bg-brand-500 text-white' : state === 'active' ? 'bg-brand-100 text-brand-700 ring-2 ring-brand-300' : 'bg-canvas text-ink-faint ring-1 ring-line'
@@ -177,7 +180,7 @@ export default function Upload() {
                   <p className="font-semibold text-danger-600">{error.code === 'duplicate_statement' ? 'Already imported' : 'Upload failed'}</p>
                   <p className="text-ink-soft">{error.message}</p>
                   {error.code === 'duplicate_statement' && <Link to="/statements" className="mt-1 inline-block font-semibold text-brand-600 hover:underline">View statement history</Link>}
-                  {error.code === 'parse_error' && <p className="mt-1 text-ink-muted">Tip: choose your bank explicitly below, or export the statement as CSV or Excel from net banking.</p>}
+                  {error.code === 'parse_error' && <p className="mt-1 text-ink-muted">Tip: choose your bank or card explicitly below, or export the statement as CSV or Excel from net banking.</p>}
                 </div>
               </div>
             )}
@@ -208,10 +211,15 @@ export default function Upload() {
 
             <div className="mt-5 flex flex-wrap items-end gap-3">
               <div className="min-w-[14rem] flex-1">
-                <label className="label" htmlFor="bank">Bank format</label>
+                <label className="label" htmlFor="bank">Statement format</label>
                 <select id="bank" className="select" value={bank} onChange={(e) => setBank(e.target.value)} disabled={phase !== 'select'}>
                   <option value="">Auto-detect (recommended)</option>
-                  {(banks.data || []).map((b) => <option key={b.key} value={b.key}>{b.key === 'generic' ? 'Other bank (generic parser)' : b.bank_name}</option>)}
+                  <optgroup label="Bank accounts">
+                    {(banks.data || []).filter((b) => !isCard(b)).map((b) => <option key={b.key} value={b.key}>{formatLabel(b)}</option>)}
+                  </optgroup>
+                  <optgroup label="Credit cards">
+                    {(banks.data || []).filter(isCard).map((b) => <option key={b.key} value={b.key}>{formatLabel(b)}</option>)}
+                  </optgroup>
                 </select>
               </div>
               <button className="btn-primary h-[42px]" disabled={!file || phase !== 'select' || (needsPassword && !password)} onClick={upload}>
@@ -225,8 +233,9 @@ export default function Upload() {
             <Card className="card-pad">
               <CardHeader icon={Building2} title="Supported formats" />
               <ul className="space-y-2 text-sm text-ink-soft">
-                {(banks.data || []).filter((b) => b.key !== 'generic').map((b) => <li key={b.key} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand-500" />{b.bank_name} <span className="text-xs text-ink-faint">CSV · PDF · Excel</span></li>)}
+                {(banks.data || []).filter((b) => !isCard(b) && b.key !== 'generic').map((b) => <li key={b.key} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand-500" />{b.bank_name} <span className="text-xs text-ink-faint">CSV · PDF · Excel</span></li>)}
                 <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-brand-500" />Other banks via the generic parser</li>
+                {(banks.data || []).some(isCard) && <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" /><span>Credit cards: {(banks.data || []).filter((b) => isCard(b) && b.key !== 'generic_card').map((b) => b.bank_name.replace(' Credit Card', '')).join(', ')} and other issuers <span className="text-xs text-ink-faint">CSV · PDF · Excel</span></span></li>}
               </ul>
               <p className="mt-3 text-xs text-ink-muted">CSV, Excel (.xls/.xlsx) and text PDFs - including password-protected e-statements - work out of the box. Scanned PDFs need OCR (Tesseract) on the server.</p>
             </Card>
@@ -250,8 +259,9 @@ export default function Upload() {
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-ink-muted">Detected</p>
-                <h2 className="text-xl font-extrabold text-ink">{up.bank_name}</h2>
+                <h2 className="flex flex-wrap items-center gap-2 text-xl font-extrabold text-ink">{up.bank_name}{up.account_type === 'credit_card' && <Badge tone="navy">Credit card</Badge>}</h2>
                 <p className="text-xs text-ink-muted">{up.file_name} · parser <code className="rounded bg-canvas px-1">{up.parser_used}</code></p>
+                {up.account_type === 'credit_card' && <p className="mt-1 max-w-xl text-xs text-ink-muted">Purchases count as spending. Payments you make to the card are filed under Credit Card Payments and are not counted as income.</p>}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button className="btn-secondary" onClick={cancel} disabled={phase === 'importing'}>Cancel</button>

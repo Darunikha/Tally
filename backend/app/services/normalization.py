@@ -39,20 +39,43 @@ def fingerprints(user_id: ObjectId, txns: list[ParsedTransaction]) -> list[str]:
     return out
 
 
+_CARD_PAYMENT = re.compile(r"PAYMENT\s*(RECEIVED|RECD)|THANK\s*YOU|BBPS|AUTOPAY|CC\s*PAYMENT|CARD\s*PAYMENT")
+_COUNTRY_TAIL = re.compile(r"\s+(IN|IND|US|USA|SG|GB|UK|AE|DE|NL)$")
+_CITIES = ("MUMBAI|NEW DELHI|DELHI|BANGALORE|BENGALURU|CHENNAI|HYDERABAD|PUNE|KOLKATA|GURGAON|GURUGRAM|NOIDA|AHMEDABAD|"
+           "JAIPUR|KOCHI|COCHIN|LUCKNOW|CHANDIGARH|INDORE|SURAT|NAGPUR|VISAKHAPATNAM|THANE|BHOPAL|COIMBATORE|GOA")
+_CITY_TAIL = re.compile(rf"\s+(?:{_CITIES})$")
+
+
+def _card_merchant(description: str, is_credit: bool) -> str | None:
+    """Card narrations end with the city and country ('SWIGGY BANGALORE IN'); neither is part of the merchant."""
+    up = re.sub(r"\s+", " ", description.upper()).strip()
+    if is_credit and _CARD_PAYMENT.search(up):
+        return "Credit Card Payment"
+    up = _COUNTRY_TAIL.sub("", up)
+    up = _CITY_TAIL.sub("", up)
+    return extract_merchant(up, "Credit Card")
+
+
 def normalize(
-    parsed: list[ParsedTransaction], parser: BaseBankParser, bank_name: str, user_id: ObjectId, upload_id: ObjectId
+    parsed: list[ParsedTransaction], parser: BaseBankParser, bank_name: str, user_id: ObjectId, upload_id: ObjectId,
+    account_type: str = "bank",
 ) -> list[dict]:
     fps = fingerprints(user_id, parsed)
     docs = []
+    is_card = account_type == "credit_card"
     for t, fp in zip(parsed, fps):
-        method = detect_payment_method(t.description)
-        upi = parser.extract_upi(t.description) if method == "UPI" else None
-        if upi and upi.is_upi:
-            merchant = upi.merchant
-            reference = t.reference or upi.reference
+        if is_card:
+            method, upi = "Credit Card", None
+            merchant, reference = _card_merchant(t.description, t.credit_amount > 0), t.reference
         else:
-            merchant = extract_merchant(t.description, method)
-            reference = t.reference
+            method = detect_payment_method(t.description)
+            upi = parser.extract_upi(t.description) if method == "UPI" else None
+            if upi and upi.is_upi:
+                merchant = upi.merchant
+                reference = t.reference or upi.reference
+            else:
+                merchant = extract_merchant(t.description, method)
+                reference = t.reference
         docs.append(
             transaction_doc(
                 user_id=user_id,
@@ -71,6 +94,7 @@ def normalize(
                 bank_name=bank_name,
                 raw_bank_fields=t.raw_fields,
                 fingerprint=fp,
+                account_type=account_type,
             )
         )
     return docs

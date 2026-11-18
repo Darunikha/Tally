@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
@@ -11,7 +11,11 @@ vi.mock('../api/client', async (importOriginal) => {
   return { ...actual, api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() } }
 })
 
-const BANKS = [{ key: 'hdfc', bank_name: 'HDFC Bank' }, { key: 'sbi', bank_name: 'State Bank of India' }, { key: 'generic', bank_name: 'Unknown Bank' }]
+const BANKS = [
+  { key: 'hdfc', bank_name: 'HDFC Bank', account_type: 'bank' }, { key: 'sbi', bank_name: 'State Bank of India', account_type: 'bank' },
+  { key: 'hdfc_card', bank_name: 'HDFC Bank Credit Card', account_type: 'credit_card' }, { key: 'sbi_card', bank_name: 'SBI Card', account_type: 'credit_card' },
+  { key: 'generic', bank_name: 'Unknown Bank', account_type: 'bank' }, { key: 'generic_card', bank_name: 'Credit Card', account_type: 'credit_card' },
+]
 
 const PREVIEW = {
   upload: {
@@ -140,5 +144,49 @@ describe('Upload page - errors and import', () => {
     expect(api.post).toHaveBeenLastCalledWith('/statements/up1/confirm', { include_duplicates: false })
     expect(await screen.findByRole('heading', { name: 'Statement imported' })).toBeInTheDocument()
     expect(screen.getByText(/45 transactions from State Bank of India were added/)).toBeInTheDocument()
+  })
+})
+
+describe('Upload page - credit cards', () => {
+  const CARD_PREVIEW = {
+    ...PREVIEW,
+    upload: { ...PREVIEW.upload, bank_name: 'HDFC Bank Credit Card', file_name: 'card.csv', account_type: 'credit_card', parser_used: 'hdfc_card:csv' },
+  }
+
+  it('groups bank accounts and credit cards in the format list', async () => {
+    renderUpload()
+    const select = await screen.findByLabelText('Statement format')
+    await waitFor(() => expect(within(select).getAllByRole('option').length).toBeGreaterThan(1))
+    const groups = Object.fromEntries([...select.querySelectorAll('optgroup')].map((g) => [g.label, [...g.querySelectorAll('option')].map((o) => o.textContent)]))
+    expect(groups['Bank accounts']).toEqual(['HDFC Bank', 'State Bank of India', 'Other bank (generic parser)'])
+    expect(groups['Credit cards']).toEqual(['HDFC Bank Credit Card', 'SBI Card', 'Other credit card'])
+    expect(within(select).getAllByRole('option')[0]).toHaveTextContent('Auto-detect (recommended)')
+  })
+
+  it('lists cards under supported formats', async () => {
+    renderUpload()
+    expect(await screen.findByText(/Credit cards: HDFC Bank, SBI Card and other issuers/)).toBeInTheDocument()
+  })
+
+  it('sends the chosen card format and labels the preview as a credit card', async () => {
+    renderUpload()
+    choose('card.csv', 'text/csv')
+    await waitFor(() => expect(within(screen.getByLabelText('Statement format')).getAllByRole('option').length).toBeGreaterThan(1))
+    await userEvent.selectOptions(screen.getByLabelText('Statement format'), 'hdfc_card')
+    api.post.mockResolvedValueOnce({ data: CARD_PREVIEW })
+    await userEvent.click(screen.getByRole('button', { name: /analyse statement/i }))
+
+    expect(api.post.mock.calls[0][1].get('bank')).toBe('hdfc_card')
+    expect(await screen.findByRole('heading', { name: /HDFC Bank Credit Card/ })).toHaveTextContent('Credit card')
+    expect(screen.getByText(/Payments you make to the card are filed under Credit Card Payments and are not counted as income/)).toBeInTheDocument()
+  })
+
+  it('does not show the card note or badge for a bank statement', async () => {
+    renderUpload()
+    choose('sbi.pdf')
+    api.post.mockResolvedValueOnce({ data: { ...PREVIEW, upload: { ...PREVIEW.upload, account_type: 'bank' } } })
+    await userEvent.click(screen.getByRole('button', { name: /analyse statement/i }))
+    expect(await screen.findByRole('heading', { name: 'State Bank of India' })).not.toHaveTextContent('Credit card')
+    expect(screen.queryByText(/not counted as income/)).not.toBeInTheDocument()
   })
 })

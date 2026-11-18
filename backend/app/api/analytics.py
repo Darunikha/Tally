@@ -5,7 +5,8 @@ from app.analytics import calculations as calc
 from app.analytics.insights import generate_insights
 from app.api.deps import current_user, db_dep
 from app.database.mongo import RAW_TRANSACTIONS, SPENDING_SUMMARIES, STATEMENT_UPLOADS
-from app.services.query import Period, build_filter, category_map, load_transactions, resolve_period
+from app.services.query import (Period, build_filter, category_map, excluded_category_ids, load_transactions,
+                                resolve_period)
 from app.utils.dates import add_months, month_start, today_ist, to_day
 from app.utils.serialize import to_json
 
@@ -24,7 +25,8 @@ class Scope:
 
 async def _scoped(db, user, scope: Scope, period: Period | None = None):
     p = period if period is not None else scope.period
-    return await load_transactions(db, build_filter(user["_id"], p, upload_id=scope.upload_id))
+    excluded = await excluded_category_ids(db, user["_id"])
+    return await load_transactions(db, build_filter(user["_id"], p, upload_id=scope.upload_id, exclude_category_ids=excluded))
 
 
 def _effective_period(scope: Scope, txns: list[dict]) -> Period:
@@ -71,7 +73,11 @@ async def dashboard(scope: Scope = Depends(), user=Depends(current_user), db=Dep
     # monthly income vs expense: 6 months ending at the period end (or latest data)
     anchor = period.end or (max((t["transaction_date"] for t in txns), default=None)) or to_day(today_ist())
     six_start = add_months(month_start(anchor), -5)
-    six = await load_transactions(db, build_filter(user["_id"], Period(six_start, anchor), upload_id=scope.upload_id))
+    excluded = await excluded_category_ids(db, user["_id"])
+    six = await load_transactions(db, build_filter(user["_id"], Period(six_start, anchor), upload_id=scope.upload_id,
+                                                   exclude_category_ids=excluded))
+    left_out = await db[RAW_TRANSACTIONS].count_documents(
+        {**build_filter(user["_id"], scope.period, upload_id=scope.upload_id), "category_id": {"$in": excluded}}) if excluded else 0
     granularity = "day" if period.days and period.days <= 62 else "week" if period.days <= 200 else "month"
     recent = await (db[RAW_TRANSACTIONS].find(build_filter(user["_id"], scope.period, upload_id=scope.upload_id),
                                               {"raw_bank_fields": 0})
@@ -93,6 +99,7 @@ async def dashboard(scope: Scope = Depends(), user=Depends(current_user), db=Dep
         "top_merchants": calc.merchant_breakdown(txns, limit=6, categories=cats),
         "recent_transactions": to_json(recent),
         "insights": insights,
+        "excluded_payments": {"count": left_out},
     }
 
 

@@ -9,15 +9,16 @@ from app.core.errors import AppError
 from app.database.mongo import BUDGETS, CATEGORIES
 from app.models.documents import budget_doc
 from app.schemas.requests import BudgetUpsert
-from app.services.query import Period, build_filter, category_map, load_transactions, oid
+from app.services.query import Period, build_filter, category_map, excluded_category_ids, load_transactions, oid
 from app.utils.dates import month_end, today_ist, utcnow
 from app.utils.money import r2
 
 router = APIRouter(tags=["budgets"])
 
 
-async def _debits(db, user_id, start: datetime, end: datetime) -> list[dict]:
-    return await load_transactions(db, build_filter(user_id, Period(start, end), transaction_type="debit"))
+async def _debits(db, user_id, start: datetime, end: datetime, excluded: list) -> list[dict]:
+    return await load_transactions(db, build_filter(user_id, Period(start, end), transaction_type="debit",
+                                                    exclude_category_ids=excluded))
 
 
 @router.get("/budgets/status")
@@ -30,9 +31,10 @@ async def budgets_status(month: int | None = Query(None, ge=1, le=12), year: int
     start = datetime(year or today.year, month or today.month, 1)
     uid = user["_id"]
 
-    this_month = await _debits(db, uid, start, month_end(start))
+    excluded = await excluded_category_ids(db, uid)  # card bill payments are not spending once cards are tracked
+    this_month = await _debits(db, uid, start, month_end(start), excluded)
     h_start, h_end = history_window(start)
-    past = await _debits(db, uid, h_start, h_end)
+    past = await _debits(db, uid, h_start, h_end, excluded)
 
     spend, total = spend_by_category(this_month)
     hist, hist_total = history_average(past)

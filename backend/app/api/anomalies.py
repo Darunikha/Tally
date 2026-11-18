@@ -4,7 +4,7 @@ from app.anomaly_detection.detector import DISCLAIMER, TYPE_LABELS, detect_anoma
 from app.api.deps import current_user, db_dep
 from app.database.mongo import ANOMALY_REVIEWS
 from app.schemas.requests import AnomalyReview
-from app.services.query import build_filter, category_map, load_transactions, resolve_period
+from app.services.query import build_filter, category_map, excluded_category_ids, load_transactions, resolve_period
 from app.utils.dates import utcnow
 
 router = APIRouter(prefix="/anomalies", tags=["anomalies"])
@@ -13,7 +13,8 @@ router = APIRouter(prefix="/anomalies", tags=["anomalies"])
 async def _anomalies(db, user, start=None, end=None, month=None, year=None, upload_id=None):
     period = resolve_period(start, end, month, year)
     # baselines use the user's full history; results are limited to the requested period
-    history = await load_transactions(db, build_filter(user["_id"], None, upload_id=upload_id))
+    excluded = await excluded_category_ids(db, user["_id"])  # a big card bill payment is not an unusual purchase
+    history = await load_transactions(db, build_filter(user["_id"], None, upload_id=upload_id, exclude_category_ids=excluded))
     s = user.get("settings", {})
     found = detect_anomalies(history, await category_map(db, user["_id"]), period.start, period.end,
                              s.get("anomaly_sensitivity", "medium"), s.get("large_transaction_threshold"))

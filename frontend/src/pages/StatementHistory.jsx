@@ -57,7 +57,7 @@ export default function StatementHistory() {
                           <div className="min-w-0"><p className="truncate font-semibold text-ink">{s.file_name}</p><p className="text-xs text-ink-muted">{s.file_type.toUpperCase()} · {formatBytes(s.file_size)}{s.is_demo ? ' · demo' : ''}</p></div>
                         </div>
                       </td>
-                      <td className="table-td text-ink-soft">{s.bank_name || '—'}<p className="text-xs text-ink-faint">{s.parser_used}</p></td>
+                      <td className="table-td text-ink-soft">{s.bank_name || '—'}{s.account_type === 'credit_card' && <> <Badge tone="navy">Credit card</Badge></>}<p className="text-xs text-ink-faint">{s.parser_used}</p></td>
                       <td className="table-td whitespace-nowrap text-ink-soft">{formatDateTime(s.upload_date)}</td>
                       <td className="table-td whitespace-nowrap text-ink-soft">{s.date_range?.start ? `${formatDate(s.date_range.start)} – ${formatDate(s.date_range.end)}` : '—'}</td>
                       <td className="table-td text-right font-semibold">{s.transaction_count}{s.duplicate_count > 0 && <p className="text-xs font-normal text-ink-muted">{s.duplicate_count} duplicates skipped</p>}</td>

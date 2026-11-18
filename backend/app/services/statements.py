@@ -23,7 +23,7 @@ from app.database.mongo import RAW_TRANSACTIONS, STAGED_TRANSACTIONS, STATEMENT_
 from app.models.documents import upload_doc
 from app.parsers.base import ParseError, PasswordRequired
 from app.parsers.registry import parse_statement
-from app.services.categories import apply_engine, load_engine
+from app.services.categories import apply_engine, ensure_defaults, load_engine
 from app.services.file_validation import validate_upload
 from app.services.normalization import normalize
 from app.services.summaries import refresh_summaries
@@ -85,7 +85,8 @@ async def create_preview(db, user_id: ObjectId, filename: str, content_type: str
     finally:
         del content  # drop our reference to the uploaded bytes as early as possible
 
-    docs = normalize(result.transactions, parser, result.bank_name, user_id, up["_id"])
+    docs = normalize(result.transactions, parser, result.bank_name, user_id, up["_id"], result.account_type)
+    await ensure_defaults(db, user_id)
     apply_engine(await load_engine(db, user_id), docs)
 
     fps = [d["fingerprint"] for d in docs]
@@ -100,6 +101,7 @@ async def create_preview(db, user_id: ObjectId, filename: str, content_type: str
     dates = [d["transaction_date"] for d in docs]
     stats = {
         "bank_name": result.bank_name,
+        "account_type": result.account_type,
         "parser_used": result.parser_used,
         "processing_status": "pending_review",
         "parsed_count": len(docs),

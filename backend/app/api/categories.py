@@ -75,6 +75,9 @@ async def delete_category(category_id: str, user=Depends(current_user), db=Depen
         raise AppError("Category not found", 404, "not_found")
     if cat["name"] == OTHER_CATEGORY:
         raise AppError("The 'Other' fallback category cannot be deleted", 400, "protected")
+    if cat.get("excluded_from_totals"):
+        raise AppError("This category keeps credit card bill payments out of your totals, so it cannot be deleted. "
+                       "You can rename it.", 400, "protected")
     other = await other_category_id(db, user["_id"])
     moved = await db[RAW_TRANSACTIONS].update_many(
         {"user_id": user["_id"], "category_id": cid},

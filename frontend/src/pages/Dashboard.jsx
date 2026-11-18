@@ -5,6 +5,7 @@ import {
   Scale, Store, Wallet, Zap,
 } from 'lucide-react'
 import BudgetsCard from '../components/BudgetProgress'
+import CardPaymentsNote from '../components/CardPaymentsNote'
 import { CategoryDonut, IncomeExpenseBars, RankBars, TrendArea } from '../components/charts'
 import PeriodPicker, { periodLabel } from '../components/layout/PeriodPicker'
 import TransactionDetail, { MerchantAvatar, useCategories } from '../components/TransactionDetail'
@@ -98,6 +99,8 @@ export default function Dashboard() {
             <StatCard icon={CalendarClock} tone="warn" label="Avg. Daily Spending" value={formatINR(t?.avg_daily_spending)} delta={data?.changes.avg_daily_spending} goodWhenUp={false} loading={loading && !data}
               hint={t ? `Total expenses ÷ ${t.days} days in the period.` : undefined} />
           </div>
+
+          <CardPaymentsNote count={data?.excluded_payments?.count} />
 
           {empty && !loading ? (
             <Card className="card-pad mt-6">

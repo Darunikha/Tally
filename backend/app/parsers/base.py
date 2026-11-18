@@ -71,6 +71,7 @@ class ParseResult:
     transactions: list[ParsedTransaction]
     warnings: list[str] = field(default_factory=list)
     skipped_rows: int = 0
+    account_type: str = "bank"  # "bank" | "credit_card"
 
 
 CANONICAL = ("date", "value_date", "description", "debit", "credit", "amount", "dr_cr", "balance", "reference")
@@ -84,6 +85,7 @@ _SKIP_DESC = re.compile(
 class BaseBankParser:
     key: str = "base"
     bank_name: str = "Unknown"
+    account_type: str = "bank"
     # canonical column -> accepted header spellings (compared after norm_header)
     column_aliases: dict[str, list[str]] = {}
     # normalized headers that, together, identify this bank's layout
@@ -212,4 +214,14 @@ class BaseBankParser:
             raise ParseError("No transactions could be read from this statement.")
         if skipped:
             warnings.append(f"{skipped} row(s) were skipped (headers, totals, or rows without a valid date/amount).")
-        return ParseResult(self.bank_name, self.key, txns, warnings, skipped)
+        if self._looks_like_unflagged_card(mapping, txns):
+            warnings.append("Every amount was read as money coming in. If this is a credit card statement, pick "
+                            "your card (or 'Other credit card') in the statement format list and upload it again.")
+        return ParseResult(self.bank_name, self.key, txns, warnings, skipped, self.account_type)
+
+    def _looks_like_unflagged_card(self, mapping: dict[str, int], txns: list[ParsedTransaction]) -> bool:
+        """A single unsigned amount column with no Dr/Cr marker reads as all credits - the signature of a
+        credit card statement (where purchases are positive) being parsed as a bank account."""
+        single_amount = "amount" in mapping and not {"debit", "credit", "dr_cr"} & mapping.keys()
+        return (self.account_type == "bank" and single_amount and len(txns) >= 5
+                and all(t.credit_amount > 0 and not t.debit_amount for t in txns))

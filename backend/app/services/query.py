@@ -9,7 +9,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 
 from app.core.errors import AppError
-from app.database.mongo import CATEGORIES, RAW_TRANSACTIONS
+from app.database.mongo import CATEGORIES, RAW_TRANSACTIONS, STATEMENT_UPLOADS
 from app.utils.dates import add_months, month_end, to_day
 
 
@@ -67,7 +67,7 @@ def build_filter(user_id: ObjectId, period: Period | None = None, upload_id: str
                  category_id: str | None = None, transaction_type: str | None = None,
                  payment_method: str | None = None, search: str | None = None, needs_review: bool | None = None,
                  min_amount: float | None = None, max_amount: float | None = None,
-                 merchant: str | None = None) -> dict:
+                 merchant: str | None = None, exclude_category_ids: list[ObjectId] | None = None) -> dict:
     q: dict = {"user_id": user_id}
     if period and (period.start or period.end):
         q["transaction_date"] = {}
@@ -79,6 +79,8 @@ def build_filter(user_id: ObjectId, period: Period | None = None, upload_id: str
         q["upload_id"] = oid(upload_id, "statement id")
     if category_id:
         q["category_id"] = oid(category_id, "category id")
+    if exclude_category_ids and "category_id" not in q:
+        q["category_id"] = {"$nin": exclude_category_ids}
     if transaction_type in ("debit", "credit"):
         q["transaction_type"] = transaction_type
     if payment_method:
@@ -100,6 +102,19 @@ def build_filter(user_id: ObjectId, period: Period | None = None, upload_id: str
             q["$or"] = [{"raw_description": rx}, {"normalized_merchant": rx}, {"upi_id": rx}, {"notes": rx},
                         {"transaction_reference": rx}]
     return q
+
+
+async def excluded_category_ids(db, user_id: ObjectId) -> list[ObjectId]:
+    """Categories left out of income and spending totals (credit card bill payments).
+
+    Only once the user has imported a credit card statement: the card's own purchases are then counted, so
+    the bill paid from the bank (and the payment received on the card) would be counted a second time. Until
+    then a card bill paid from the bank is real spending and stays in the totals."""
+    has_card = await db[STATEMENT_UPLOADS].find_one(
+        {"user_id": user_id, "account_type": "credit_card", "processing_status": "completed"}, {"_id": 1})
+    if not has_card:
+        return []
+    return [c["_id"] async for c in db[CATEGORIES].find({"user_id": user_id, "excluded_from_totals": True}, {"_id": 1})]
 
 
 ANALYTIC_FIELDS = {

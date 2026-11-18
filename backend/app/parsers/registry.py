@@ -5,6 +5,7 @@ import logging
 import re
 
 from app.parsers.adapters.banks import BANK_PARSERS, GENERIC_PARSER
+from app.parsers.adapters.cards import CARD_PARSERS, CARD_STATEMENT_WORDS, GENERIC_CARD_PARSER
 from app.parsers.base import BaseBankParser, ParseError, ParseResult, StatementTable
 from app.parsers.excel import read_excel
 from app.parsers.readers import read_csv, read_pdf
@@ -15,7 +16,7 @@ DETECTION_THRESHOLD = 0.6
 
 
 def all_parsers() -> list[BaseBankParser]:
-    return [*BANK_PARSERS, GENERIC_PARSER]
+    return [*BANK_PARSERS, *CARD_PARSERS, GENERIC_PARSER, GENERIC_CARD_PARSER]
 
 
 def get_parser(key: str) -> BaseBankParser | None:
@@ -23,10 +24,12 @@ def get_parser(key: str) -> BaseBankParser | None:
 
 
 def identify_bank(table: StatementTable) -> tuple[BaseBankParser, float]:
-    scored = sorted(((p.detect(table), p) for p in BANK_PARSERS), key=lambda x: x[0], reverse=True)
+    scored = sorted(((p.detect(table), p) for p in [*BANK_PARSERS, *CARD_PARSERS]), key=lambda x: x[0], reverse=True)
     best_score, best = scored[0]
     if best_score >= DETECTION_THRESHOLD:
         return best, best_score
+    if CARD_STATEMENT_WORDS.search(table.text or ""):
+        return GENERIC_CARD_PARSER, 0.0  # reads like a card statement from an issuer we have no adapter for
     return GENERIC_PARSER, 0.0
 
 
@@ -50,17 +53,18 @@ def parse_statement(content: bytes, file_type: str, bank_hint: str | None = None
     if parser is None:
         parser, score = identify_bank(table)
         log.info("Bank identified as %s (score %.2f, source %s)", parser.key, score, table.source)
+    generic = GENERIC_CARD_PARSER if parser.account_type == "credit_card" else GENERIC_PARSER
     try:
         result = parser.parse(table)
     except ParseError:
-        if parser is GENERIC_PARSER:
+        if parser is generic:
             raise
         log.info("Adapter %s failed; retrying with generic parser", parser.key)
-        result = GENERIC_PARSER.parse(table)
+        result = generic.parse(table)
         result.bank_name = parser.bank_name  # bank still identified, layout differed
         result.warnings.append("Bank layout differed from the known format; parsed with the generic adapter.")
         result.parser_used = f"{result.parser_used}:{table.source}"
-        return result, GENERIC_PARSER
+        return result, generic
     if parser is GENERIC_PARSER and table.source.startswith("pdf"):
         # PDF text often names the bank even when we parsed generically
         # title lines only (stop at the first dated transaction line) so counterparty banks / VPAs
