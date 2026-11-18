@@ -1,10 +1,11 @@
 import { Link, NavLink } from 'react-router-dom'
 import {
-  AlertTriangle, BarChart3, CloudUpload, History, House, List, PiggyBank, Repeat, Settings, Tags, X, Zap,
+  AlertTriangle, BarChart3, CloudUpload, History, House, Landmark, List, PiggyBank, Repeat, Settings, Tags, X, Zap,
 } from 'lucide-react'
 
 export const NAV = [
   { to: '/', label: 'Dashboard', icon: House, end: true },
+  { to: '/accounts', label: 'Accounts', icon: Landmark },
   { to: '/upload', label: 'Upload Statement', icon: CloudUpload },
   { to: '/transactions', label: 'Transactions', icon: List },
   { to: '/upi', label: 'UPI Analysis', icon: Zap },

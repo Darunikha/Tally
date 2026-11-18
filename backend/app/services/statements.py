@@ -23,6 +23,7 @@ from app.database.mongo import RAW_TRANSACTIONS, STAGED_TRANSACTIONS, STATEMENT_
 from app.models.documents import upload_doc
 from app.parsers.base import ParseError, PasswordRequired
 from app.parsers.registry import parse_statement
+from app.services.accounts import check_for_statement
 from app.services.categories import apply_engine, ensure_defaults, load_engine
 from app.services.file_validation import validate_upload
 from app.services.normalization import normalize
@@ -127,10 +128,12 @@ async def _get_upload(db, user_id: ObjectId, upload_id: ObjectId) -> dict:
     return up
 
 
-async def confirm_import(db, user_id: ObjectId, upload_id: ObjectId, include_duplicates: bool = False) -> dict:
+async def confirm_import(db, user_id: ObjectId, upload_id: ObjectId, include_duplicates: bool = False,
+                         account_id: str | None = None) -> dict:
     up = await _get_upload(db, user_id, upload_id)
     if up["processing_status"] != "pending_review":
         raise AppError(f"Statement is not awaiting confirmation (status: {up['processing_status']}).", 409, "invalid_state")
+    account = await check_for_statement(db, user_id, account_id, up.get("account_type", "bank")) if account_id else None
 
     staged = await db[STAGED_TRANSACTIONS].find({"user_id": user_id, "upload_id": upload_id}).to_list(None)
     to_insert = []
@@ -141,6 +144,7 @@ async def confirm_import(db, user_id: ObjectId, upload_id: ObjectId, include_dup
         if dup:
             d["fingerprint"] = f"{d['fingerprint']}:{upload_id}"  # user explicitly kept a duplicate
         d["created_at"] = d["updated_at"] = utcnow()
+        d["account_id"] = account
         to_insert.append(d)
 
     inserted, skipped = 0, len(staged) - len(to_insert)
@@ -164,6 +168,7 @@ async def confirm_import(db, user_id: ObjectId, upload_id: ObjectId, include_dup
         "total_credits": r2(sum(t["credit_amount"] for t in imported)),
         "date_range": {"start": min(dates) if dates else None, "end": max(dates) if dates else None},
         "completed_at": utcnow(),
+        "account_id": account,
     }
     await db[STATEMENT_UPLOADS].update_one({"_id": upload_id}, {"$set": update})
     await db[STAGED_TRANSACTIONS].delete_many({"user_id": user_id, "upload_id": upload_id})

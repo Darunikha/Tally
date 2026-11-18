@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CloudUpload, Eye, FileSpreadsheet, FileText, History, Trash2 } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
+import AccountSelect from '../components/AccountSelect'
 import { Badge, Card, ConfirmDialog, EmptyState, ErrorState, LoadingBlock, PageHeader } from '../components/ui'
 import { useFilters } from '../context/FilterContext'
 import { useToast } from '../context/ToastContext'
@@ -27,8 +28,16 @@ export default function StatementHistory() {
     } catch (e) { toast.error(errorMessage(e)) } finally { setBusy(false) }
   }
 
+  const moveTo = async (s, accountId) => {
+    try {
+      await api.put(`/statements/${s.id}/account`, { account_id: accountId || null })
+      toast.success(accountId ? 'Statement moved' : 'Statement is no longer filed under an account')
+      reload(); dataChanged()
+    } catch (e) { toast.error(errorMessage(e)) }
+  }
+
   const viewOnDashboard = (s) => {
-    setFilter((f) => ({ ...f, mode: 'all', uploadId: s.id }))
+    setFilter((f) => ({ ...f, mode: 'all', uploadId: s.id, accountId: '' }))
     navigate('/')
   }
 
@@ -41,9 +50,9 @@ export default function StatementHistory() {
           <EmptyState icon={History} title="No statements yet" message="Uploaded statements and their import results will appear here." action={<Link to="/upload" className="btn-primary">Upload your first statement</Link>} />
         ) : (
           <div className="scrollbar-thin overflow-x-auto">
-            <table className="w-full min-w-[960px]">
+            <table className="w-full min-w-[1100px]">
               <thead className="bg-canvas/70"><tr>
-                <th className="table-th">File</th><th className="table-th">Bank</th><th className="table-th">Uploaded</th><th className="table-th">Period</th>
+                <th className="table-th">File</th><th className="table-th">Bank</th><th className="table-th">Account</th><th className="table-th">Uploaded</th><th className="table-th">Period</th>
                 <th className="table-th text-right">Transactions</th><th className="table-th text-right">Debits</th><th className="table-th text-right">Credits</th><th className="table-th">Status</th><th className="table-th" />
               </tr></thead>
               <tbody className="divide-y divide-line">
@@ -58,6 +67,12 @@ export default function StatementHistory() {
                         </div>
                       </td>
                       <td className="table-td text-ink-soft">{s.bank_name || '—'}{s.account_type === 'credit_card' && <> <Badge tone="navy">Credit card</Badge></>}<p className="text-xs text-ink-faint">{s.parser_used}</p></td>
+                      <td className="table-td min-w-[11rem]">
+                        {s.processing_status === 'completed'
+                          ? <AccountSelect id={`acct-${s.id}`} value={s.account_id || ''} accountType={s.account_type || 'bank'} bankName={s.bank_name}
+                              noneLabel="Not filed" onChange={(v) => moveTo(s, v)} />
+                          : <span className="text-ink-faint">—</span>}
+                      </td>
                       <td className="table-td whitespace-nowrap text-ink-soft">{formatDateTime(s.upload_date)}</td>
                       <td className="table-td whitespace-nowrap text-ink-soft">{s.date_range?.start ? `${formatDate(s.date_range.start)} – ${formatDate(s.date_range.end)}` : '—'}</td>
                       <td className="table-td text-right font-semibold">{s.transaction_count}{s.duplicate_count > 0 && <p className="text-xs font-normal text-ink-muted">{s.duplicate_count} duplicates skipped</p>}</td>

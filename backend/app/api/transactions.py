@@ -4,7 +4,7 @@ from fastapi.responses import Response
 from app.api.deps import current_user, db_dep
 from app.core.errors import AppError
 from app.core.ratelimit import limit as rate_limit
-from app.database.mongo import CATEGORIES, RAW_TRANSACTIONS, STATEMENT_UPLOADS
+from app.database.mongo import ACCOUNTS, CATEGORIES, RAW_TRANSACTIONS, STATEMENT_UPLOADS
 from app.schemas.requests import BulkCategoryUpdate, TransactionUpdate
 from app.services.categories import load_engine
 from app.services.exports import MAX_EXPORT_ROWS, build_csv, build_xlsx, export_row
@@ -32,14 +32,14 @@ class TxnFilters:
     def __init__(
         self,
         start: str | None = None, end: str | None = None, month: int | None = Query(None, ge=1, le=12),
-        year: int | None = Query(None, ge=1990, le=2100), upload_id: str | None = None,
+        year: int | None = Query(None, ge=1990, le=2100), upload_id: str | None = None, account_id: str | None = None,
         category_id: str | None = None, type: str | None = Query(None, pattern="^(debit|credit)$"),
         payment_method: str | None = None, search: str | None = Query(None, max_length=100),
         needs_review: bool | None = None, min_amount: float | None = None, max_amount: float | None = None,
         merchant: str | None = Query(None, max_length=100),
     ):
         self.args = (start, end, month, year)
-        self.rest = dict(upload_id=upload_id, category_id=category_id, transaction_type=type,
+        self.rest = dict(upload_id=upload_id, account_id=account_id, category_id=category_id, transaction_type=type,
                          payment_method=payment_method, search=search, needs_review=needs_review,
                          min_amount=min_amount, max_amount=max_amount, merchant=merchant)
 
@@ -94,6 +94,9 @@ async def _describe_filters(f: TxnFilters, cats: dict, db, user_id) -> list[tupl
     r = f.rest
     if r["category_id"]:
         out.append(("Category", cats.get(r["category_id"], {}).get("name", "(unknown)")))
+    if r["account_id"]:
+        acc = None if r["account_id"] == "none" else await db[ACCOUNTS].find_one({"_id": oid(r["account_id"], "account id"), "user_id": user_id})
+        out.append(("Account", "Not filed under an account" if r["account_id"] == "none" else (acc or {}).get("name", "(unknown)")))
     if r["upload_id"]:
         up = await db[STATEMENT_UPLOADS].find_one({"_id": oid(r["upload_id"], "statement id"), "user_id": user_id})
         out.append(("Statement", (up or {}).get("file_name", "(unknown)")))
@@ -119,7 +122,8 @@ async def export_transactions(f: TxnFilters = Depends(), format: str = Query("cs
     cats = await category_map(db, uid)
     docs = await (db[RAW_TRANSACTIONS].find(q, {"raw_bank_fields": 0}).sort([("transaction_date", 1), ("_id", 1)])
                   .to_list(None))
-    rows = [export_row(t, cats) for t in docs]
+    accounts = {str(a["_id"]): a["name"] async for a in db[ACCOUNTS].find({"user_id": uid}, {"name": 1})}
+    rows = [export_row(t, cats, accounts) for t in docs]
     if format == "xlsx":
         debits = sum(t.get("debit_amount") or 0 for t in docs)
         credits = sum(t.get("credit_amount") or 0 for t in docs)

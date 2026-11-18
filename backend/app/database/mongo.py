@@ -20,6 +20,7 @@ RATE_LIMITS = "rate_limits"
 AUTH_TOKENS = "auth_tokens"  # password reset / email verification (hashed)
 BUDGETS = "budgets"
 RECURRING_IGNORED = "recurring_ignored"  # merchants the user marked "not recurring"
+ACCOUNTS = "accounts"  # a bank account or credit card that statements are filed under
 
 _client = None
 _db: AsyncIOMotorDatabase | None = None
@@ -75,6 +76,7 @@ async def ensure_indexes(db) -> None:
     tx = db[RAW_TRANSACTIONS]
     await tx.create_index([("user_id", ASCENDING), ("transaction_date", DESCENDING)])
     await tx.create_index([("user_id", ASCENDING), ("upload_id", ASCENDING)])
+    await tx.create_index([("user_id", ASCENDING), ("account_id", ASCENDING), ("transaction_date", DESCENDING)])
     await tx.create_index([("user_id", ASCENDING), ("normalized_merchant", ASCENDING)])
     await tx.create_index([("user_id", ASCENDING), ("category_id", ASCENDING)])
     await tx.create_index([("user_id", ASCENDING), ("transaction_reference", ASCENDING)])
@@ -89,6 +91,7 @@ async def ensure_indexes(db) -> None:
     await db[ANOMALY_REVIEWS].create_index([("user_id", ASCENDING), ("anomaly_key", ASCENDING)], unique=True)
     # one budget per category per user; category_id None is the single "overall" budget
     await db[BUDGETS].create_index([("user_id", ASCENDING), ("category_id", ASCENDING)], unique=True)
+    await db[ACCOUNTS].create_index([("user_id", ASCENDING), ("name_key", ASCENDING)], unique=True)
     await db[RECURRING_IGNORED].create_index([("user_id", ASCENDING), ("merchant", ASCENDING)], unique=True)
     # TTL indexes: MongoDB deletes these documents automatically once expires_at passes
     await db[RATE_LIMITS].create_index("expires_at", expireAfterSeconds=0)

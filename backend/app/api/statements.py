@@ -6,7 +6,8 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.database.mongo import STAGED_TRANSACTIONS, STATEMENT_UPLOADS
 from app.parsers.registry import all_parsers
-from app.schemas.requests import ConfirmImport
+from app.schemas.requests import AssignAccount, ConfirmImport
+from app.services import accounts
 from app.services import statements as svc
 from app.services.query import category_map, oid
 from app.utils.serialize import to_json
@@ -48,8 +49,10 @@ async def preview(file: UploadFile = File(...), bank: str | None = Form(default=
     res = await svc.create_preview(db, user["_id"], file.filename or "statement", file.content_type, content,
                                    bank or None, password=password or None)
     cats = await category_map(db, user["_id"])
-    return {"upload": to_json(res["upload"]), "transactions": _with_category(res["transactions"], cats),
-            "new_count": res["new_count"], "uncategorized_count": res["uncategorized_count"]}
+    up = res["upload"]
+    return {"upload": to_json(up), "transactions": _with_category(res["transactions"], cats),
+            "new_count": res["new_count"], "uncategorized_count": res["uncategorized_count"],
+            "suggested_account_id": await accounts.suggest_account(db, user["_id"], up.get("bank_name"), up.get("account_type", "bank"))}
 
 
 @router.get("")
@@ -72,8 +75,15 @@ async def staged(upload_id: str, page: int = Query(1, ge=1), page_size: int = Qu
 
 @router.post("/{upload_id}/confirm")
 async def confirm(upload_id: str, body: ConfirmImport | None = None, user=Depends(verified_user), db=Depends(db_dep)):
-    up = await svc.confirm_import(db, user["_id"], oid(upload_id), (body or ConfirmImport()).include_duplicates)
+    body = body or ConfirmImport()
+    up = await svc.confirm_import(db, user["_id"], oid(upload_id), body.include_duplicates, body.account_id)
     return to_json(up)
+
+
+@router.put("/{upload_id}/account")
+async def assign_account(upload_id: str, body: AssignAccount, user=Depends(current_user), db=Depends(db_dep)):
+    """Move a statement (and its transactions) to another account, or unassign it."""
+    return await accounts.assign_statement(db, user["_id"], oid(upload_id), body.account_id)
 
 
 @router.delete("/{upload_id}/preview", status_code=204)

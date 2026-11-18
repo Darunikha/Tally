@@ -15,8 +15,8 @@ MAX_EXPORT_ROWS = 50_000
 FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
 
 HEADERS = ["Date", "Merchant", "Description", "Type", "Debit", "Credit", "Balance", "Category", "Payment method",
-           "Account type", "Bank", "UPI ID", "Reference", "Notes"]
-WIDTHS = [12, 24, 52, 8, 13, 13, 14, 20, 16, 14, 22, 26, 22, 30]
+           "Account type", "Bank", "Account", "UPI ID", "Reference", "Notes"]
+WIDTHS = [12, 24, 52, 8, 13, 13, 14, 20, 16, 14, 22, 22, 26, 22, 30]
 ACCOUNT_LABELS = {"credit_card": "Credit card", "bank": "Bank account"}
 
 
@@ -29,7 +29,7 @@ def neutralize(value):
     return "'" + value if is_formula_like(value) else value
 
 
-def export_row(t: dict, cats: dict[str, dict]) -> list:
+def export_row(t: dict, cats: dict[str, dict], accounts: dict[str, str] | None = None) -> list:
     """One transaction as plain values (date, text, numbers); formatting is the writer's job."""
     cat = cats.get(str(t.get("category_id")), {})
     return [
@@ -37,7 +37,7 @@ def export_row(t: dict, cats: dict[str, dict]) -> list:
         "Credit" if t.get("transaction_type") == "credit" else "Debit",
         t.get("debit_amount") or None, t.get("credit_amount") or None, t.get("balance"),
         cat.get("name") or "", t.get("payment_method") or "", ACCOUNT_LABELS.get(t.get("account_type") or "bank", "Bank account"),
-        t.get("bank_name") or "", t.get("upi_id") or "", t.get("transaction_reference") or "", t.get("notes") or "",
+        t.get("bank_name") or "", (accounts or {}).get(str(t.get("account_id")), ""), t.get("upi_id") or "", t.get("transaction_reference") or "", t.get("notes") or "",
     ]
 
 

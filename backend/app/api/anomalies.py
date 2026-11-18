@@ -10,11 +10,12 @@ from app.utils.dates import utcnow
 router = APIRouter(prefix="/anomalies", tags=["anomalies"])
 
 
-async def _anomalies(db, user, start=None, end=None, month=None, year=None, upload_id=None):
+async def _anomalies(db, user, start=None, end=None, month=None, year=None, upload_id=None, account_id=None):
     period = resolve_period(start, end, month, year)
     # baselines use the user's full history; results are limited to the requested period
     excluded = await excluded_category_ids(db, user["_id"])  # a big card bill payment is not an unusual purchase
-    history = await load_transactions(db, build_filter(user["_id"], None, upload_id=upload_id, exclude_category_ids=excluded))
+    history = await load_transactions(db, build_filter(user["_id"], None, upload_id=upload_id, account_id=account_id,
+                                                                  exclude_category_ids=excluded))
     s = user.get("settings", {})
     found = detect_anomalies(history, await category_map(db, user["_id"]), period.start, period.end,
                              s.get("anomaly_sensitivity", "medium"), s.get("large_transaction_threshold"))
@@ -27,10 +28,11 @@ async def _anomalies(db, user, start=None, end=None, month=None, year=None, uplo
 @router.get("")
 async def list_anomalies(start: str | None = None, end: str | None = None,
                          month: int | None = Query(None, ge=1, le=12), year: int | None = Query(None, ge=1990, le=2100),
-                         upload_id: str | None = None, status: str | None = Query(None, pattern="^(open|reviewed|dismissed)$"),
+                         upload_id: str | None = None, account_id: str | None = None,
+                         status: str | None = Query(None, pattern="^(open|reviewed|dismissed)$"),
                          severity: str | None = Query(None, pattern="^(low|medium|high)$"),
                          user=Depends(current_user), db=Depends(db_dep)):
-    found = await _anomalies(db, user, start, end, month, year, upload_id)
+    found = await _anomalies(db, user, start, end, month, year, upload_id, account_id)
     counts = {
         "total": len(found),
         "open": sum(a["status"] == "open" for a in found),

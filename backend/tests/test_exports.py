@@ -137,7 +137,7 @@ async def test_excel_workbook_structure(client, auth, sample):
     assert wb.sheetnames == ["Transactions", "About this export"]
     ws = wb["Transactions"]
     assert [c.value for c in ws[1]] == HEADERS and ws.freeze_panes == "A2"
-    assert ws.auto_filter.ref == f"A1:N{ws.max_row}"
+    assert ws.auto_filter.ref == f"A1:{chr(64 + len(HEADERS))}{ws.max_row}"
     first = [c for c in ws[2]]
     assert isinstance(first[0].value, datetime) and first[0].number_format == "DD-MMM-YYYY"    # real dates
     assert isinstance(first[4].value, (int, float)) and first[4].number_format == "#,##0.00"    # real numbers

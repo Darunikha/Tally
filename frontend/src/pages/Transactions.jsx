@@ -10,12 +10,12 @@ import { useToast } from '../context/ToastContext'
 import { useApi } from '../hooks/useApi'
 import { formatDate, formatINR } from '../lib/format'
 
-const FILTER_KEYS = ['search', 'start', 'end', 'category_id', 'type', 'payment_method', 'upload_id', 'needs_review', 'merchant']
+const FILTER_KEYS = ['search', 'start', 'end', 'category_id', 'type', 'payment_method', 'upload_id', 'account_id', 'needs_review', 'merchant']
 
 export default function Transactions() {
   const toast = useToast()
   const [sp, setSp] = useSearchParams()
-  const { statements, version, dataChanged } = useFilters()
+  const { statements, accounts, version, dataChanged } = useFilters()
   const categories = useCategories([version])
   const methods = useApi('/transactions/payment-methods')
   const [selected, setSelected] = useState(null)
@@ -75,6 +75,7 @@ export default function Transactions() {
     f.payment_method && ['payment_method', f.payment_method],
     f.start && ['start', `From ${formatDate(f.start)}`],
     f.end && ['end', `To ${formatDate(f.end)}`],
+    f.account_id && ['account_id', `Account: ${f.account_id === 'none' ? 'not filed' : accounts.find((a) => a.id === f.account_id)?.name || '…'}`],
     f.upload_id && ['upload_id', `Statement: ${statements.find((s) => s.id === f.upload_id)?.file_name || '…'}`],
     f.needs_review && ['needs_review', 'Needs review'],
     f.merchant && ['merchant', `Merchant: ${f.merchant}`],
@@ -104,13 +105,19 @@ export default function Transactions() {
           </button>
         </div>
         {showFilters && (
-          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <div><label className="label" htmlFor="f-start">From</label><input id="f-start" type="date" className="input" value={f.start} onChange={(e) => update({ start: e.target.value })} /></div>
             <div><label className="label" htmlFor="f-end">To</label><input id="f-end" type="date" className="input" value={f.end} min={f.start || undefined} onChange={(e) => update({ end: e.target.value })} /></div>
             <div><label className="label" htmlFor="f-pm">Payment method</label>
               <select id="f-pm" className="select" value={f.payment_method} onChange={(e) => update({ payment_method: e.target.value })}>
                 <option value="">All methods</option>{(methods.data || []).map((m) => <option key={m}>{m}</option>)}
               </select></div>
+            {accounts.length > 0 && (
+              <div><label className="label" htmlFor="f-ac">Account</label>
+                <select id="f-ac" className="select" value={f.account_id} onChange={(e) => update({ account_id: e.target.value })}>
+                  <option value="">All accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}<option value="none">Not filed</option>
+                </select></div>
+            )}
             <div><label className="label" htmlFor="f-st">Statement</label>
               <select id="f-st" className="select" value={f.upload_id} onChange={(e) => update({ upload_id: e.target.value })}>
                 <option value="">All statements</option>{statements.map((s) => <option key={s.id} value={s.id}>{s.bank_name} · {s.file_name}</option>)}

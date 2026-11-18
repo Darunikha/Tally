@@ -52,6 +52,7 @@ def upload_doc(user_id: ObjectId, file_name: str, file_type: str, file_hash: str
         "date_range": {"start": None, "end": None},
         "parser_used": None,
         "account_type": "bank",  # "bank" | "credit_card"
+        "account_id": None,      # the Account this statement is filed under (None = unassigned)
         "warnings": [],
         "error": None,
         "is_demo": False,
@@ -78,6 +79,7 @@ def transaction_doc(
     raw_bank_fields: dict,
     fingerprint: str,
     account_type: str = "bank",
+    account_id: ObjectId | None = None,
 ) -> dict:
     now = utcnow()
     ttype = "credit" if credit_amount > 0 else "debit"
@@ -106,6 +108,7 @@ def transaction_doc(
         "notes": "",
         "bank_name": bank_name,
         "account_type": account_type,
+        "account_id": account_id,
         "raw_bank_fields": raw_bank_fields,
         "fingerprint": fingerprint,
         "created_at": now,
@@ -153,6 +156,26 @@ def budget_doc(user_id: ObjectId, category_id: ObjectId | None, monthly_limit: f
         "category_id": category_id,  # None = overall monthly budget
         "monthly_limit": monthly_limit,
         "alert_threshold": alert_threshold,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+ACCOUNT_COLORS = ["#2F7D55", "#2A78D6", "#EB6834", "#6250D6", "#EDA100", "#E87BA4", "#4B7F87", "#8A6D3B"]
+
+
+def account_doc(user_id: ObjectId, name: str, account_type: str, bank_name: str | None, last4: str | None,
+                color: str) -> dict:
+    now = utcnow()
+    return {
+        "_id": ObjectId(),
+        "user_id": user_id,
+        "name": name,
+        "name_key": name.casefold(),  # unique per user, case-insensitively
+        "account_type": account_type,  # "bank" | "credit_card"
+        "bank_name": bank_name,
+        "last4": last4,  # the last 4 digits only, for recognising the account - never a full number
+        "color": color,
         "created_at": now,
         "updated_at": now,
     }

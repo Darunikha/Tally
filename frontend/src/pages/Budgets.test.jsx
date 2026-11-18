@@ -31,6 +31,7 @@ function renderPage(budgetStatus, { latest = { year: 2025, month: 8 } } = {}) {
     if (url === '/auth/me') return Promise.resolve({ data: { id: 'u1', full_name: 'Dee', email: 'dee@example.com' } })
     if (url === '/analytics/periods') return Promise.resolve({ data: { months: latest ? [{ ...latest, label: 'x', transaction_count: 1 }] : [], latest, today: '2026-11-18' } })
     if (url === '/analytics/statements-filter') return Promise.resolve({ data: [] })
+    if (url === '/accounts') return Promise.resolve({ data: { accounts: [], unassigned: null, totals: {} } })
     if (url === '/categories') return Promise.resolve({ data: CATEGORIES })
     if (url === '/budgets/status') return budgetStatus instanceof Error ? Promise.reject(budgetStatus) : Promise.resolve({ data: budgetStatus })
     return Promise.reject(new Error(`unexpected GET ${url}`))

@@ -41,6 +41,7 @@ function renderPage(data = DATA) {
     if (url === '/auth/me') return Promise.resolve({ data: { id: 'u1', full_name: 'Dee', email: 'dee@example.com' } })
     if (url === '/analytics/periods') return Promise.resolve({ data: { months: [], latest: null, today: '2026-11-18' } })
     if (url === '/analytics/statements-filter') return Promise.resolve({ data: [] })
+    if (url === '/accounts') return Promise.resolve({ data: { accounts: [], unassigned: null, totals: {} } })
     if (url === '/recurring') return data instanceof Error ? Promise.reject(data) : Promise.resolve({ data })
     return Promise.reject(new Error(`unexpected GET ${url}`))
   })

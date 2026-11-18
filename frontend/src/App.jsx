@@ -3,6 +3,7 @@ import AppLayout from './components/layout/AppLayout'
 import { Spinner } from './components/ui'
 import { useAuth } from './context/AuthContext'
 import { FilterProvider } from './context/FilterContext'
+import Accounts from './pages/Accounts'
 import Analytics from './pages/Analytics'
 import Anomalies from './pages/Anomalies'
 import Budgets from './pages/Budgets'
@@ -42,6 +43,7 @@ export default function App() {
       <Route path="/terms" element={<Terms />} />
       <Route element={<Protected><AppLayout /></Protected>}>
         <Route index element={<Dashboard />} />
+        <Route path="accounts" element={<Accounts />} />
         <Route path="upload" element={<Upload />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="upi" element={<UpiAnalysis />} />

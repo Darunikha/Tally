@@ -67,7 +67,8 @@ def build_filter(user_id: ObjectId, period: Period | None = None, upload_id: str
                  category_id: str | None = None, transaction_type: str | None = None,
                  payment_method: str | None = None, search: str | None = None, needs_review: bool | None = None,
                  min_amount: float | None = None, max_amount: float | None = None,
-                 merchant: str | None = None, exclude_category_ids: list[ObjectId] | None = None) -> dict:
+                 merchant: str | None = None, exclude_category_ids: list[ObjectId] | None = None,
+                 account_id: str | None = None) -> dict:
     q: dict = {"user_id": user_id}
     if period and (period.start or period.end):
         q["transaction_date"] = {}
@@ -77,6 +78,8 @@ def build_filter(user_id: ObjectId, period: Period | None = None, upload_id: str
             q["transaction_date"]["$lte"] = period.end
     if upload_id:
         q["upload_id"] = oid(upload_id, "statement id")
+    if account_id:  # "none" = statements not filed under any account (a missing field matches None)
+        q["account_id"] = None if account_id == "none" else oid(account_id, "account id")
     if category_id:
         q["category_id"] = oid(category_id, "category id")
     if exclude_category_ids and "category_id" not in q:

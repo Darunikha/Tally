@@ -5,6 +5,7 @@ import {
   KeyRound, Loader2, LockKeyhole, ShieldCheck, Sparkles, X,
 } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
+import AccountSelect from '../components/AccountSelect'
 import { Badge, Card, CardHeader, CategoryPill, PageHeader, TypeBadge } from '../components/ui'
 import { useFilters } from '../context/FilterContext'
 import { useToast } from '../context/ToastContext'
@@ -53,6 +54,7 @@ export default function Upload() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [includeDup, setIncludeDup] = useState(false)
+  const [accountId, setAccountId] = useState('') // the account this statement is filed under (chosen at review)
   const [password, setPassword] = useState('') // in memory only; cleared once the file is unlocked
   const [showPw, setShowPw] = useState(false)
   const pwRef = useRef(null)
@@ -74,7 +76,7 @@ export default function Upload() {
   }
 
   const reset = () => {
-    setFile(null); setPreview(null); setResult(null); setError(null); setProgress(0); setPhase('select'); setIncludeDup(false)
+    setFile(null); setPreview(null); setResult(null); setError(null); setProgress(0); setPhase('select'); setIncludeDup(false); setAccountId('')
     setPassword(''); setShowPw(false)
     if (inputRef.current) inputRef.current.value = ''
   }
@@ -94,6 +96,7 @@ export default function Upload() {
         },
       })
       setPreview(r.data)
+      setAccountId(r.data.suggested_account_id || '')
       setPassword('') // no longer needed once the statement is unlocked
       setPhase('preview')
     } catch (e) {
@@ -105,7 +108,7 @@ export default function Upload() {
   const confirm = async () => {
     setPhase('importing')
     try {
-      const r = await api.post(`/statements/${preview.upload.id}/confirm`, { include_duplicates: includeDup })
+      const r = await api.post(`/statements/${preview.upload.id}/confirm`, { include_duplicates: includeDup, ...(accountId ? { account_id: accountId } : {}) })
       setResult(r.data)
       setPhase('done')
       toast.success(`${r.data.transaction_count} transactions imported`, 'Statement imported')
@@ -271,6 +274,15 @@ export default function Upload() {
                 </button>
               </div>
             </div>
+            <div className="mb-4 max-w-md">
+              <label className="label" htmlFor="account">Account</label>
+              <AccountSelect id="account" value={accountId} onChange={setAccountId} accountType={up.account_type} bankName={up.bank_name}
+                disabled={phase === 'importing'} noneLabel="Don't file under an account" />
+              <p className="mt-1.5 text-xs text-ink-muted">
+                {preview.suggested_account_id && accountId === preview.suggested_account_id ? 'Matched to your account for this bank. ' : ''}
+                Filing statements under accounts lets you see each account's balance and spending on its own. You can change it later in Statement History.
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <Stat label="Transactions found" value={up.parsed_count} />
               <Stat label="New" value={preview.new_count} />
@@ -327,7 +339,7 @@ export default function Upload() {
           <div className="flex flex-col items-center py-8 text-center">
             <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-brand-50 text-brand-500"><CheckCircle2 className="h-9 w-9" /></div>
             <h2 className="text-xl font-extrabold text-ink">Statement imported</h2>
-            <p className="mt-1 text-sm text-ink-muted">{result.transaction_count} transactions from {result.bank_name} were added{result.duplicate_count ? `, ${result.duplicate_count} duplicates skipped` : ''}.</p>
+            <p className="mt-1 text-sm text-ink-muted">{result.transaction_count} transactions from {result.bank_name} were added{result.account_id ? ' to your account' : ''}{result.duplicate_count ? `, ${result.duplicate_count} duplicates skipped` : ''}.</p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               <Link to="/" className="btn-primary">Go to dashboard<ArrowRight className="h-4 w-4" /></Link>
               <Link to={`/transactions?upload_id=${result.id}`} className="btn-secondary">View transactions</Link>

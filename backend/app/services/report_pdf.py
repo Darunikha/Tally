@@ -91,7 +91,8 @@ def build_summary_pdf(r: dict) -> bytes:
     width = A4[0] - 36 * mm
     t = r["totals"]
     story = [_p("Spending report", st["h1"]),
-             _p(f"{r['period_label']}" + (f"  |  Statement: {r['statement']}" if r.get("statement") else "")
+             _p(f"{r['period_label']}" + (f"  |  Account: {r['account']}" if r.get("account") else "")
+                + (f"  |  Statement: {r['statement']}" if r.get("statement") else "")
                 + f"  |  Generated {r['generated']}", st["sub"])]
 
     if not t["transaction_count"]:

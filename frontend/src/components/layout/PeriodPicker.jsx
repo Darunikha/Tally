@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarDays, ChevronDown, FileText } from 'lucide-react'
+import { CalendarDays, ChevronDown, FileText, Landmark } from 'lucide-react'
 import { useFilters } from '../../context/FilterContext'
 import { MONTH_NAMES, formatDate } from '../../lib/format'
 import { Segmented } from '../ui'
@@ -12,7 +12,7 @@ export function periodLabel(filter) {
 }
 
 export default function PeriodPicker({ showStatement = true }) {
-  const { filter, setFilter, periods, statements } = useFilters()
+  const { filter, setFilter, periods, statements, accounts } = useFilters()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(filter)
   const ref = useRef(null)
@@ -29,13 +29,17 @@ export default function PeriodPicker({ showStatement = true }) {
   const hasData = (m, y) => periods.months.some((p) => p.month === m && p.year === y)
   const apply = () => { setFilter(draft); setOpen(false) }
   const stmt = statements.find((s) => s.id === filter.uploadId)
+  const account = filter.accountId === 'none' ? { name: 'Unassigned' } : accounts.find((a) => a.id === filter.accountId)
+  // statements offered depend on the account picked, so you can't choose a combination with no data
+  const stmtChoices = statements.filter((s) => !draft.accountId || (draft.accountId === 'none' ? !s.account_id : s.account_id === draft.accountId))
 
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((o) => !o)} className="btn-secondary h-11 min-w-0 max-w-full rounded-xl px-3.5 shadow-sm" aria-expanded={open} aria-haspopup="dialog">
         <CalendarDays className="h-4 w-4 text-ink-soft" />
         <span className="truncate">{periodLabel(filter)}</span>
-        {stmt && <span className="hidden max-w-[9rem] truncate rounded-md bg-brand-50 px-1.5 text-xs text-brand-700 sm:inline">{stmt.bank_name}</span>}
+        {account && <span className="hidden max-w-[9rem] truncate rounded-md bg-brand-50 px-1.5 text-xs text-brand-700 sm:inline">{account.name}</span>}
+        {!account && stmt && <span className="hidden max-w-[9rem] truncate rounded-md bg-brand-50 px-1.5 text-xs text-brand-700 sm:inline">{stmt.bank_name}</span>}
         <ChevronDown className="h-4 w-4 text-ink-muted" />
       </button>
       {open && (
@@ -72,12 +76,22 @@ export default function PeriodPicker({ showStatement = true }) {
               <div><label className="label" htmlFor="pp-e">To</label><input id="pp-e" type="date" className="input" value={draft.end} min={draft.start || undefined} onChange={(e) => setDraft((d) => ({ ...d, end: e.target.value }))} /></div>
             </div>
           )}
+          {showStatement && accounts.length > 0 && (
+            <div className="mt-4">
+              <label className="label" htmlFor="pp-ac"><Landmark className="mr-1 inline h-3 w-3" />Account</label>
+              <select id="pp-ac" className="select" value={draft.accountId || ''} onChange={(e) => setDraft((d) => ({ ...d, accountId: e.target.value, uploadId: '' }))}>
+                <option value="">All accounts</option>
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.last4 ? ` ••${a.last4}` : ''}</option>)}
+                <option value="none">Not filed under an account</option>
+              </select>
+            </div>
+          )}
           {showStatement && (
             <div className="mt-4">
               <label className="label" htmlFor="pp-st"><FileText className="mr-1 inline h-3 w-3" />Statement</label>
               <select id="pp-st" className="select" value={draft.uploadId} onChange={(e) => setDraft((d) => ({ ...d, uploadId: e.target.value }))}>
                 <option value="">All statements</option>
-                {statements.map((s) => <option key={s.id} value={s.id}>{s.bank_name} · {s.file_name}</option>)}
+                {stmtChoices.map((s) => <option key={s.id} value={s.id}>{s.bank_name} · {s.file_name}</option>)}
               </select>
             </div>
           )}

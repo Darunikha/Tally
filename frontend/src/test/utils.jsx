@@ -28,3 +28,25 @@ export function apiError(status, code, message, details) {
   err.response = { status, data: { error: { code, message, details } } }
   return err
 }
+
+const STANDARD_GETS = {
+  '/auth/me': { id: 'u1', full_name: 'Dee', email: 'dee@example.com' },
+  '/analytics/periods': { months: [], latest: null, today: '2026-11-18' },
+  '/analytics/statements-filter': [],
+  '/accounts': { accounts: [], unassigned: null, totals: {} },
+}
+
+/**
+ * Sign in and answer the endpoints every page loads through the filter context. `overrides` maps URL -> response
+ * body (or an Error to reject with, or a function of the URL's params). Anything else is rejected loudly.
+ * Pass the mocked `api` and the real `tokenStore` from the test's own import of '../api/client'.
+ */
+export function mockSignedInApi(api, tokenStore, overrides = {}) {
+  tokenStore.set('test-token')
+  const routes = { ...STANDARD_GETS, ...overrides }
+  api.get.mockImplementation((url, config) => {
+    if (!(url in routes)) return Promise.reject(new Error(`unexpected GET ${url}`))
+    const v = typeof routes[url] === 'function' ? routes[url](config?.params) : routes[url]
+    return v instanceof Error ? Promise.reject(v) : Promise.resolve({ data: v })
+  })
+}

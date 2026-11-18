@@ -58,8 +58,8 @@ set `VITE_API_URL` at build time and add that origin to `CORS_ORIGINS` in the ba
 ### 3. Tests
 
 ```bash
-cd backend && python -m pytest        # 290 backend tests
-cd frontend && npm test               # 104 frontend tests (Vitest + React Testing Library)
+cd backend && python -m pytest        # 324 backend tests
+cd frontend && npm test               # 142 frontend tests (Vitest + React Testing Library)
 cd frontend && npm run coverage       # frontend coverage report → frontend/coverage/
 ```
 
@@ -72,6 +72,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Credit cards: every issuer layout, purchase vs payment direction, detection that never claims a bank statement, and not double counting card payments
 * Recurring payments: cadence and amount rules (including what must *not* be flagged), price changes, status, summary and the API
 * Exports: CSV and Excel contents, formula-injection safety, filters, limits, privacy, and the PDF report (checked against the dashboard's numbers)
+* Accounts: creating and filing statements, balances, per-account filtering that adds up to the combined totals, moving statements, automatic setup
 * Auth security: password reset, email verification, session revocation, rate limits and data export
 
 **Frontend.** These tests cover:
@@ -84,6 +85,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Credit cards: the grouped format list, the card badge and note, and the dashboard note
 * Recurring payments: summary, upcoming list, group and status filters, hiding and restoring
 * Downloads: the export menu, the report button, filenames and readable errors
+* Accounts: the Accounts page, choosing or creating an account while importing, moving statements, and the account filter
 
 The API is mocked, so frontend tests need no running server.
 
@@ -135,9 +137,10 @@ backend/
     (analytics/budgets.py   budget progress, projections and suggested limits)
     (analytics/recurring.py recurring payment detection)
     (services/exports.py    CSV and Excel export, services/report_pdf.py PDF report)
+    (services/accounts.py   accounts: filing statements, balances, setup)
     services/               file validation, normalization/dedupe, import pipeline, summaries, queries
     utils/                  UPI extraction, merchant normalization, payment methods, IST dates, money
-    api/                    auth, statements, transactions, categories+rules, budgets, recurring, reports, analytics+UPI, anomalies, settings
+    api/                    auth, statements, transactions, categories+rules, accounts, budgets, recurring, reports, analytics+UPI, anomalies, settings
   sample_data/              SYNTHETIC statements: 5 bank CSV layouts, unknown layout, .xlsx, .xls,
                             HTML-.xls, 2 PDFs, a password-locked PDF (password DEMO1234), 4 credit card
                             CSV layouts, an unknown-issuer card CSV and a card PDF + generator
@@ -147,7 +150,7 @@ frontend/src/
   context/                  auth, global period/statement filter, toasts
   components/               layout (sidebar, top bar, period picker), UI kit, charts, transaction detail
   pages/                    Dashboard, Upload, Transactions, UPI, Analytics, Anomalies, Categories & Rules,
-                            Budgets, Recurring, Statement History, Settings, Login/Register
+                            Accounts, Budgets, Recurring, Statement History, Settings, Login/Register
 ```
 
 ---
@@ -243,6 +246,17 @@ These are indicators for review, never fraud verdicts. Every baseline comes from
 Sensitivity (low / medium / high) and the large-transaction alert are set in **Settings**. You can mark
 anomalies as reviewed, dismiss them, or reopen them.
 
+### Accounts
+An **account** is one bank account or credit card, such as "HDFC Savings", "SBI Salary" or "HDFC Card". Filing statements under accounts lets you see each account's balance and spending on its own, or everything together.
+
+* **Filing a statement.** When you review an import, choose the account from the **Account** list or create one right there (named after the bank). If you have exactly one account of the same kind for that bank, Tally selects it for you. A card statement can only go into a credit card account, and a bank statement into a bank account.
+* **Accounts page.** Each account shows its latest balance (and the date it is as of) and the money in and out in its most recent month with data. Credit cards show what was spent instead, since a card statement has no balance. The total across bank accounts adds each account's latest balance, so the dates can differ.
+* **One account or all.** The account picker in the date selector narrows the Dashboard, Analytics, UPI, Anomalies, Transactions, exports and PDF report to one account. Per-account totals always add up to the combined total.
+* **Moving and unfiling.** Change a statement's account any time in **Statement History**; its transactions move with it. Deleting an account never deletes data: its statements simply become unassigned.
+* **Existing data.** Statements imported before accounts existed are unassigned. **Set up automatically** on the Accounts page creates one account per bank (and per credit card) and files them for you.
+* **Budgets and recurring payments** always cover everything, since a budget applies to all your spending. Anomaly baselines come from the selected account's own history.
+* Only the **last 4 digits** can be stored, to help you recognise an account. Never enter a full account or card number.
+
 ### Budgets
 Set a monthly limit per category, plus an optional overall limit, on the **Budgets** page. Budgets are
 per calendar month and compare against your debit transactions for that month:
@@ -288,7 +302,8 @@ A merchant is recurring when you pay it on a steady schedule **and** a steady am
 
 ### Data model (MongoDB)
 `users`, `statement_uploads`, `raw_transactions`, `staged_transactions` (preview area), `categories`,
-`categorization_rules`, `budgets` (one per user and category; no category means the overall budget),
+`categorization_rules`, `accounts` (your bank accounts and cards; statements and transactions carry the account they belong to),
+`budgets` (one per user and category; no category means the overall budget),
 `recurring_ignored` (merchants you marked as not recurring),
 `spending_summaries` (cached monthly roll-ups, always rebuildable) and `anomaly_reviews`.
 Every document carries `user_id`. Indexes cover date, upload, merchant, category, reference, and a

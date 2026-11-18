@@ -120,6 +120,33 @@ class RuleTest(BaseModel):
 
 class ConfirmImport(BaseModel):
     include_duplicates: bool = False
+    account_id: str | None = None  # file the statement under this account
+
+
+class AccountCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    account_type: Literal["bank", "credit_card"] = "bank"
+    bank_name: str | None = Field(default=None, max_length=60)
+    last4: str | None = Field(default=None, pattern=r"^\d{4}$")
+    color: str | None = Field(default=None, pattern=HEX_COLOR)
+
+    @field_validator("name")
+    @classmethod
+    def _strip(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Name cannot be empty")
+        return v
+
+
+class AccountUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=60)
+    last4: str | None = Field(default=None, pattern=r"^(\d{4})?$")  # empty string clears it
+    color: str | None = Field(default=None, pattern=HEX_COLOR)
+
+
+class AssignAccount(BaseModel):
+    account_id: str | None = None  # None = unassigned
 
 
 class AnomalyReview(BaseModel):
