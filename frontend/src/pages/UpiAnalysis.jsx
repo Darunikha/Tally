@@ -4,13 +4,14 @@ import { ArrowDownLeft, ArrowUpRight, Hash, Percent, Repeat, Search, Store, Tren
 import { RankBars, SimpleBars, TrendArea } from '../components/charts'
 import PeriodPicker, { periodLabel } from '../components/layout/PeriodPicker'
 import { MerchantAvatar } from '../components/TransactionDetail'
+import NoStatementsYet from '../components/onboarding/NoStatementsYet'
 import { Card, CardHeader, CategoryPill, EmptyState, ErrorState, LoadingBlock, PageHeader, StatCard } from '../components/ui'
 import { useFilters } from '../context/FilterContext'
 import { useApi } from '../hooks/useApi'
 import { formatDate, formatINR } from '../lib/format'
 
 export default function UpiAnalysis() {
-  const { params, filter, ready, version } = useFilters()
+  const { params, filter, ready, version, statements } = useFilters()
   const { data, loading, error, reload } = useApi(ready ? '/upi/summary' : null, params, [version])
   const [q, setQ] = useState('')
   const [sortBy, setSortBy] = useState('total')
@@ -26,6 +27,15 @@ export default function UpiAnalysis() {
     { label: 'To people (P2A)', amount: t.p2a_amount },
     { label: 'Unspecified', amount: t.unknown_flow_amount },
   ] : []
+
+  if (ready && statements.length === 0) {
+    return (
+      <div className="animate-fade-up">
+        <PageHeader title="UPI Analysis" />
+        <NoStatementsYet message="Upload a statement and Tally picks out your UPI payments, who you paid, and how much went to merchants versus people." />
+      </div>
+    )
+  }
 
   return (
     <div className="animate-fade-up">
@@ -44,11 +54,11 @@ export default function UpiAnalysis() {
           <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
             <Card className="card-pad">
               <CardHeader icon={TrendingUp} title="UPI Spending Trend" />
-              {!data ? <LoadingBlock rows={6} /> : <TrendArea data={data.trend} name="UPI spent" color="#1BAF7A" />}
+              {!data ? <LoadingBlock rows={6} /> : <TrendArea data={data.trend} name="UPI spent" color="upi" />}
             </Card>
             <Card className="card-pad">
               <CardHeader icon={Users} title="Who you pay" subtitle="Merchant vs person-to-person UPI" />
-              {!data ? <LoadingBlock rows={4} /> : <SimpleBars data={flow} name="Spent" color="#3D5A80" height={220} />}
+              {!data ? <LoadingBlock rows={4} /> : <SimpleBars data={flow} name="Spent" color="expense" height={220} />}
             </Card>
           </div>
 

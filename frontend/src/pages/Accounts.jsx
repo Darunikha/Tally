@@ -24,8 +24,8 @@ function AccountCard({ a, onEdit, onDelete, onAnalyse }) {
           <p className="mt-1"><Badge tone={card ? 'navy' : 'brand'}>{TYPE_LABEL[a.account_type]}</Badge></p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <button className="rounded-lg p-1.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => onEdit(a)} aria-label={`Edit ${a.name}`}><Pencil className="h-4 w-4" /></button>
-          <button className="rounded-lg p-1.5 text-ink-muted hover:bg-danger-50 hover:text-danger-600" onClick={() => onDelete(a)} aria-label={`Delete ${a.name}`}><Trash2 className="h-4 w-4" /></button>
+          <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => onEdit(a)} aria-label={`Edit ${a.name}`}><Pencil className="h-4 w-4" /></button>
+          <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-danger-50 hover:text-danger-600" onClick={() => onDelete(a)} aria-label={`Delete ${a.name}`}><Trash2 className="h-4 w-4" /></button>
         </div>
       </div>
 

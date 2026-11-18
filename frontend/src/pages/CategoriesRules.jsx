@@ -99,8 +99,8 @@ function RuleForm({ initial, categories, onClose, onSaved }) {
 function Toggle({ checked, onChange, label }) {
   return (
     <button role="switch" aria-checked={checked} aria-label={label} onClick={onChange}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? 'bg-brand-500' : 'bg-line'}`}>
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-[1.375rem]' : 'left-0.5'}`} />
+      className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? 'bg-brand-solid' : 'bg-line'}`}>
+      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all ${checked ? 'left-[1.375rem]' : 'left-0.5'}`} />
     </button>
   )
 }
@@ -172,8 +172,8 @@ export default function CategoriesRules() {
                   {c.excluded_from_totals && <p className="mt-1 text-xs text-ink-muted">Once you add a credit card statement, these are left out of income and spending so nothing is counted twice.</p>}
                 </div>
                 <div className="flex gap-1">
-                  <button className="rounded-lg p-1.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => setCatForm(c)} aria-label={`Edit ${c.name}`}><Pencil className="h-4 w-4" /></button>
-                  {c.name !== 'Other' && !c.excluded_from_totals && <button className="rounded-lg p-1.5 text-ink-muted hover:bg-danger-50 hover:text-danger-500" onClick={() => setDel({ kind: 'category', item: c })} aria-label={`Delete ${c.name}`}><Trash2 className="h-4 w-4" /></button>}
+                  <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => setCatForm(c)} aria-label={`Edit ${c.name}`}><Pencil className="h-4 w-4" /></button>
+                  {c.name !== 'Other' && !c.excluded_from_totals && <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-danger-50 hover:text-danger-500" onClick={() => setDel({ kind: 'category', item: c })} aria-label={`Delete ${c.name}`}><Trash2 className="h-4 w-4" /></button>}
                 </div>
               </Card>
             ))}
@@ -203,8 +203,8 @@ export default function CategoriesRules() {
                       <td className="table-td capitalize text-ink-soft">{r.applies_to === 'any' ? 'Both' : `${r.applies_to}s`}</td>
                       <td className="table-td text-right text-ink-soft">{r.match_count}</td>
                       <td className="table-td"><div className="flex justify-end gap-1">
-                        <button className="rounded-lg p-1.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => setRuleForm(r)} aria-label="Edit rule"><Pencil className="h-4 w-4" /></button>
-                        <button className="rounded-lg p-1.5 text-ink-muted hover:bg-danger-50 hover:text-danger-500" onClick={() => setDel({ kind: 'rule', item: r })} aria-label="Delete rule"><Trash2 className="h-4 w-4" /></button>
+                        <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => setRuleForm(r)} aria-label="Edit rule"><Pencil className="h-4 w-4" /></button>
+                        <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-danger-50 hover:text-danger-500" onClick={() => setDel({ kind: 'rule', item: r })} aria-label="Delete rule"><Trash2 className="h-4 w-4" /></button>
                       </div></td>
                     </tr>
                   ))}

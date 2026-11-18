@@ -40,11 +40,11 @@ export function StatCard({ icon: Icon, label, value, delta, goodWhenUp, tone = '
   const tones = {
     brand: 'bg-brand-50 text-brand-600 ring-brand-100',
     danger: 'bg-danger-50 text-danger-500 ring-danger-100',
-    navy: 'bg-[#EEF2F8] text-navy-500 ring-[#DCE4F0]',
+    navy: 'bg-navy-50 text-navy-500 ring-navy-100',
     warn: 'bg-warn-50 text-warn-500 ring-warn-100',
   }
   return (
-    <Card className={`card-pad flex items-center gap-4 ${tone === 'danger' ? 'bg-gradient-to-br from-white to-danger-50/60' : ''}`}>
+    <Card className={`card-pad flex items-center gap-4 ${tone === 'danger' ? 'bg-gradient-to-br from-surface to-danger-50/60' : ''}`}>
       <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ring-8 sm:h-14 sm:w-14 ${tones[tone]}`}>
         <Icon className="h-6 w-6" strokeWidth={2} />
       </div>
@@ -79,7 +79,7 @@ export function Badge({ children, tone = 'neutral', className = '' }) {
     brand: 'bg-brand-50 text-brand-700',
     danger: 'bg-danger-50 text-danger-600',
     warn: 'bg-warn-50 text-warn-500',
-    navy: 'bg-[#EEF2F8] text-navy-600',
+    navy: 'bg-navy-50 text-navy-600',
   }
   return <span className={`chip ${tones[tone]} ${className}`}>{children}</span>
 }
@@ -101,7 +101,7 @@ export function TypeBadge({ type }) {
 export function SeverityBadge({ severity }) {
   const map = { high: ['danger', 'High'], medium: ['warn', 'Medium'], low: ['neutral', 'Low'] }
   const [tone, label] = map[severity] || map.low
-  return <Badge tone={tone}><span className={`h-1.5 w-1.5 rounded-full ${tone === 'danger' ? 'bg-danger-500' : tone === 'warn' ? 'bg-warn-500' : 'bg-ink-faint'}`} />{label}</Badge>
+  return <Badge tone={tone}><span className={`h-1.5 w-1.5 rounded-full ${tone === 'danger' ? 'bg-danger-solid' : tone === 'warn' ? 'bg-warn-500' : 'bg-ink-faint'}`} />{label}</Badge>
 }
 
 export function Spinner({ className = 'h-5 w-5' }) {
@@ -162,10 +162,10 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
       <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title}
-        className={`flex max-h-[92vh] w-full ${widths[size]} flex-col rounded-t-2xl bg-white shadow-pop outline-none animate-fade-up sm:rounded-2xl`}>
+        className={`flex max-h-[92vh] w-full ${widths[size]} flex-col rounded-t-2xl bg-surface shadow-pop outline-none animate-fade-up sm:rounded-2xl`}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h3 className="text-base font-bold text-ink">{title}</h3>
-          <button className="rounded-lg p-1 text-ink-faint hover:bg-canvas hover:text-ink" onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
+          <button className="rounded-lg p-1 max-sm:p-2.5 text-ink-faint hover:bg-canvas hover:text-ink" onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
         </div>
         <div className="scrollbar-thin overflow-y-auto px-5 py-4">{children}</div>
         {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
@@ -210,7 +210,7 @@ export function Segmented({ options, value, onChange, size = 'md' }) {
     <div className="inline-flex rounded-xl bg-canvas p-1 ring-1 ring-line" role="tablist">
       {options.map((o) => (
         <button key={o.value} role="tab" aria-selected={value === o.value} onClick={() => onChange(o.value)}
-          className={`rounded-lg font-semibold transition ${size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-1.5 text-sm'} ${value === o.value ? 'bg-white text-brand-700 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
+          className={`rounded-lg font-semibold transition ${size === 'sm' ? 'px-2.5 py-1 text-xs max-sm:py-2' : 'px-3.5 py-1.5 text-sm'} ${value === o.value ? 'bg-surface text-brand-700 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
           {o.label}
         </button>
       ))}

@@ -2,6 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Colour tokens as "r g b" triplets so Tailwind opacity modifiers (bg-line/70) keep working in both themes. */
+:root {
+  --canvas: 246 246 241;
+  --surface: 255 255 255;
+  --sidebar: 249 249 245;
+  --line: 232 232 225;
+  --ink: 20 33 61;
+  --ink-soft: 59 69 88;
+  --ink-muted: 107 114 128;
+  --ink-faint: 156 163 175;
+  --brand-50: 238 246 240;
+  --brand-100: 220 238 226;
+  --brand-200: 183 220 196;
+  --brand-300: 140 197 162;
+  --brand-400: 90 167 123;
+  --brand-500: 47 125 85;
+  --brand-600: 38 106 71;
+  --brand-700: 30 84 57;
+  --brand-800: 23 63 43;
+  --brand-900: 15 42 29;
+  --brand-solid: 47 125 85;
+  --brand-solid-hover: 38 106 71;
+  --navy-50: 238 242 248;
+  --navy-100: 220 228 240;
+  --navy-500: 61 90 128;
+  --navy-600: 46 69 102;
+  --danger-50: 253 240 239;
+  --danger-100: 250 219 216;
+  --danger-500: 194 65 59;
+  --danger-600: 163 51 46;
+  --danger-solid: 194 65 59;
+  --danger-solid-hover: 163 51 46;
+  --warn-50: 255 247 230;
+  --warn-100: 253 235 196;
+  --warn-500: 183 121 31;
+}
+
+.dark {
+  --canvas: 14 20 17;
+  --surface: 22 31 25;
+  --sidebar: 17 24 18;
+  --line: 38 50 42;
+  --ink: 230 237 232;
+  --ink-soft: 197 207 200;
+  --ink-muted: 154 168 159;
+  --ink-faint: 118 132 123;
+  --brand-50: 21 37 28;
+  --brand-100: 27 50 37;
+  --brand-200: 37 66 47;
+  --brand-300: 58 106 80;
+  --brand-400: 78 154 112;
+  --brand-500: 93 181 132;
+  --brand-600: 111 196 150;
+  --brand-700: 141 211 172;
+  --brand-800: 23 63 43;
+  --brand-900: 15 42 29;
+  --brand-solid: 47 125 85;
+  --brand-solid-hover: 38 106 71;
+  --navy-50: 23 32 46;
+  --navy-100: 34 48 74;
+  --navy-500: 143 176 218;
+  --navy-600: 169 195 230;
+  --danger-50: 43 23 23;
+  --danger-100: 58 30 29;
+  --danger-500: 238 123 118;
+  --danger-600: 245 154 149;
+  --danger-solid: 194 65 59;
+  --danger-solid-hover: 163 51 46;
+  --warn-50: 43 34 16;
+  --warn-100: 59 47 20;
+  --warn-500: 224 168 74;
+}
+
+
+html.dark { color-scheme: dark; } /* native date pickers, scrollbars and form controls follow the theme */
+
 @layer base {
   html { -webkit-font-smoothing: antialiased; }
   body { @apply bg-canvas text-ink font-sans; }
@@ -13,17 +89,17 @@
   .card-pad { @apply p-5 sm:p-6; }
   .label { @apply block text-xs font-semibold uppercase tracking-wide text-ink-muted mb-1.5; }
   .input {
-    @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint
+    @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint
            transition focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100;
   }
   .select { @apply input pr-9 appearance-none bg-no-repeat cursor-pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E"); background-position: right 0.75rem center; }
   .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition
                  disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]; }
-  .btn-primary { @apply btn bg-brand-500 text-white shadow-sm hover:bg-brand-600; }
-  .btn-secondary { @apply btn border border-line bg-white text-ink hover:bg-canvas; }
+  .btn-primary { @apply btn bg-brand-solid text-white shadow-sm hover:bg-brand-solid-hover; }
+  .btn-secondary { @apply btn border border-line bg-surface text-ink hover:bg-canvas; }
   .btn-ghost { @apply btn text-ink-soft hover:bg-brand-50 hover:text-brand-700; }
-  .btn-danger { @apply btn bg-danger-500 text-white hover:bg-danger-600; }
-  .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
+  .btn-danger { @apply btn bg-danger-solid text-white hover:bg-danger-solid-hover; }
+  .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg max-sm:py-2.5; } /* 36px+ on phones */
   .chip { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold; }
   .table-th { @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted whitespace-nowrap; }
   .table-td { @apply px-4 py-3 text-sm align-middle; }
@@ -31,7 +107,7 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background: #d9d9d0; border-radius: 9999px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgb(var(--ink-faint) / 0.45); border-radius: 9999px; }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .animate-fade-up { animation: fade-up 0.35s ease-out both; }

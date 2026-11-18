@@ -80,8 +80,8 @@ function BudgetCard({ b, large = false, onEdit, onDelete }) {
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Badge tone={s.tone}>{s.label}</Badge>
-          <button className="rounded-lg p-1.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => onEdit(b)} aria-label={`Edit ${b.name} budget`}><Pencil className="h-4 w-4" /></button>
-          <button className="rounded-lg p-1.5 text-ink-muted hover:bg-danger-50 hover:text-danger-600" onClick={() => onDelete(b)} aria-label={`Delete ${b.name} budget`}><Trash2 className="h-4 w-4" /></button>
+          <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-canvas hover:text-ink" onClick={() => onEdit(b)} aria-label={`Edit ${b.name} budget`}><Pencil className="h-4 w-4" /></button>
+          <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-danger-50 hover:text-danger-600" onClick={() => onDelete(b)} aria-label={`Delete ${b.name} budget`}><Trash2 className="h-4 w-4" /></button>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ export default function Budgets() {
     <div className="animate-fade-up">
       <PageHeader title="Budgets" subtitle="Set monthly limits and see how you're tracking against them."
         actions={<>
-          <div className="flex items-center rounded-xl border border-line bg-white shadow-sm">
+          <div className="flex items-center rounded-xl border border-line bg-surface shadow-sm">
             <button className="rounded-l-xl p-2.5 text-ink-soft hover:bg-canvas" onClick={() => shift(-1)} aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></button>
             <span className="min-w-[8.5rem] text-center text-sm font-semibold text-ink" aria-live="polite">{data?.month.label || '…'}</span>
             <button className="rounded-r-xl p-2.5 text-ink-soft hover:bg-canvas disabled:opacity-40" onClick={() => shift(1)} disabled={isNow} aria-label="Next month"><ChevronRight className="h-4 w-4" /></button>
@@ -173,7 +173,7 @@ export default function Budgets() {
               {data.overall ? (
                 <div className="md:col-span-2"><BudgetCard b={data.overall} large onEdit={(b) => setForm({ initial: b })} onDelete={setRemoving} /></div>
               ) : (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-line bg-white/60 px-5 py-4 md:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-line bg-surface/60 px-5 py-4 md:col-span-2">
                   <p className="text-sm text-ink-soft"><b className="text-ink">Overall budget.</b> Cap your total monthly spending across every category.</p>
                   <button className="btn-secondary btn-sm" onClick={() => openNew({ category_id: OVERALL, limit: data.suggested_overall, hint: data.suggested_overall ? `Suggested from your average monthly spending: ${formatINR(data.suggested_overall)}.` : undefined })}>Set overall budget</button>
                 </div>

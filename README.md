@@ -58,8 +58,8 @@ set `VITE_API_URL` at build time and add that origin to `CORS_ORIGINS` in the ba
 ### 3. Tests
 
 ```bash
-cd backend && python -m pytest        # 324 backend tests
-cd frontend && npm test               # 142 frontend tests (Vitest + React Testing Library)
+cd backend && python -m pytest        # 341 backend tests
+cd frontend && npm test               # 203 frontend tests (Vitest + React Testing Library)
 cd frontend && npm run coverage       # frontend coverage report → frontend/coverage/
 ```
 
@@ -73,6 +73,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Recurring payments: cadence and amount rules (including what must *not* be flagged), price changes, status, summary and the API
 * Exports: CSV and Excel contents, formula-injection safety, filters, limits, privacy, and the PDF report (checked against the dashboard's numbers)
 * Accounts: creating and filing statements, balances, per-account filtering that adds up to the combined totals, moving statements, automatic setup
+* Onboarding: the checklist's steps follow real data, welcome and dismissal are remembered, and nothing is shown to people who already have data
 * Auth security: password reset, email verification, session revocation, rate limits and data export
 
 **Frontend.** These tests cover:
@@ -86,6 +87,8 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Recurring payments: summary, upcoming list, group and status filters, hiding and restoring
 * Downloads: the export menu, the report button, filenames and readable errors
 * Accounts: the Accounts page, choosing or creating an account while importing, moving statements, and the account filter
+* Theme: light, dark and match-device, remembered in the browser; the chart colours that change with it
+* First run: the welcome tour, the getting-started checklist, and the same "add your first statement" prompt on every analysis page
 
 The API is mocked, so frontend tests need no running server.
 
@@ -138,6 +141,7 @@ backend/
     (analytics/recurring.py recurring payment detection)
     (services/exports.py    CSV and Excel export, services/report_pdf.py PDF report)
     (services/accounts.py   accounts: filing statements, balances, setup)
+    (api/onboarding.py      first-run checklist progress)
     services/               file validation, normalization/dedupe, import pipeline, summaries, queries
     utils/                  UPI extraction, merchant normalization, payment methods, IST dates, money
     api/                    auth, statements, transactions, categories+rules, accounts, budgets, recurring, reports, analytics+UPI, anomalies, settings
@@ -151,6 +155,8 @@ frontend/src/
   components/               layout (sidebar, top bar, period picker), UI kit, charts, transaction detail
   pages/                    Dashboard, Upload, Transactions, UPI, Analytics, Anomalies, Categories & Rules,
                             Accounts, Budgets, Recurring, Statement History, Settings, Login/Register
+  context/ThemeContext.jsx  light / dark / match-device
+  components/onboarding/    welcome tour, getting-started checklist, no-data prompt, demo-data button
 ```
 
 ---
@@ -245,6 +251,14 @@ These are indicators for review, never fraud verdicts. Every baseline comes from
 
 Sensitivity (low / medium / high) and the large-transaction alert are set in **Settings**. You can mark
 anomalies as reviewed, dismiss them, or reopen them.
+
+### Appearance
+Choose **Light**, **Dark** or **Match device** from the moon/sun button in the top bar, or in Settings. The choice is kept in this browser only and applied before the page paints, so there is no flash of the wrong theme. Every colour comes from a small set of tokens defined in `src/index.css`, and the dark palette was checked for contrast (text at least 4.5:1, chart colours at least 3:1). Charts lighten their series colours on a dark background, and native controls such as date pickers follow the theme too.
+
+### Getting started
+A new account sees a short **welcome tour** once (three screens; skip it any time, and it never returns). Until the first statement is added, every analysis page shows the same prompt: upload a statement or try the demo data, so a new user is never shown an "all clear" for data that does not exist yet.
+
+After the first statement, the Dashboard shows a **Get set up** checklist: add a statement, file it under an account, review uncategorised transactions, set a budget. The steps tick themselves from your real data, so there is nothing to mark by hand. Hide the checklist whenever you like; it also disappears once all four are done. Accounts that already have data are not shown the welcome tour.
 
 ### Accounts
 An **account** is one bank account or credit card, such as "HDFC Savings", "SBI Salary" or "HDFC Card". Filing statements under accounts lets you see each account's balance and spending on its own, or everything together.

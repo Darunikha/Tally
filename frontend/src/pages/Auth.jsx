@@ -26,7 +26,7 @@ export function Shell({ title, subtitle, children, footer }) {
         </div>
         <div className="relative my-auto max-w-md">
           <h2 className="text-4xl font-extrabold leading-tight tracking-tight">Understand every rupee, from every statement.</h2>
-          <p className="mt-4 text-brand-100/90">Upload bank statements from any bank. Tally reads them, recognises UPI merchants, categorises spending and flags anything unusual.</p>
+          <p className="mt-4 text-white/85">Upload bank statements from any bank. Tally reads them, recognises UPI merchants, categorises spending and flags anything unusual.</p>
           <ul className="mt-8 space-y-4 text-sm">
             {[[Zap, 'Works with HDFC, ICICI, SBI, Axis, Kotak and other banks - CSV, Excel or PDF'],
               [Sparkles, 'Automatic categorisation with rules you control'],
@@ -35,7 +35,7 @@ export function Shell({ title, subtitle, children, footer }) {
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-brand-100/70">Your data stays on the server you run.</p>
+        <p className="relative text-xs text-white/65">Your data stays on the server you run.</p>
       </div>
       <div className="flex items-center justify-center px-5 py-10">
         <div className="w-full max-w-sm animate-fade-up">

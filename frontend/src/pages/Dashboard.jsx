@@ -6,11 +6,15 @@ import {
 } from 'lucide-react'
 import BudgetsCard from '../components/BudgetProgress'
 import CardPaymentsNote from '../components/CardPaymentsNote'
+import GettingStarted from '../components/onboarding/GettingStarted'
+import NoStatementsYet from '../components/onboarding/NoStatementsYet'
+import WelcomeTour from '../components/onboarding/WelcomeTour'
 import DownloadReportButton from '../components/DownloadReportButton'
 import { CategoryDonut, IncomeExpenseBars, RankBars, TrendArea } from '../components/charts'
 import PeriodPicker, { periodLabel } from '../components/layout/PeriodPicker'
 import TransactionDetail, { MerchantAvatar, useCategories } from '../components/TransactionDetail'
 import { Card, CardHeader, EmptyState, ErrorState, LoadingBlock, Segmented, StatCard, TypeBadge } from '../components/ui'
+import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useFilters } from '../context/FilterContext'
 import { useApi } from '../hooks/useApi'
@@ -22,7 +26,7 @@ function KeyInsight({ insights }) {
   if (!insights?.length) return null
   const cur = insights[i % insights.length]
   return (
-    <Card className="card-pad relative flex flex-col overflow-hidden bg-gradient-to-br from-brand-50 via-white to-brand-50/40">
+    <Card className="card-pad relative flex flex-col overflow-hidden bg-gradient-to-br from-brand-50 via-surface to-brand-50/40">
       <div className="mb-3 flex items-center gap-2.5">
         <Lightbulb className="h-5 w-5 text-warn-500" />
         <h2 className="text-base font-bold text-ink sm:text-lg">Key insight</h2>
@@ -32,15 +36,16 @@ function KeyInsight({ insights }) {
       <ul className="mt-5 space-y-2.5 border-t border-brand-100 pt-4">
         {[1, 2, 3].map((k) => insights[(i + k) % insights.length]).filter((x, k, arr) => insights.length > k + 1 && arr.indexOf(x) === k).map((x) => (
           <li key={x.id} className="flex gap-2.5 text-sm text-ink-soft">
-            <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${x.tone === 'negative' ? 'bg-danger-500' : x.tone === 'positive' ? 'bg-brand-500' : 'bg-ink-faint'}`} />
+            <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${x.tone === 'negative' ? 'bg-danger-solid' : x.tone === 'positive' ? 'bg-brand-solid' : 'bg-ink-faint'}`} />
             <span><b className="font-semibold text-ink">{x.title}.</b> {x.message}</span>
           </li>
         ))}
       </ul>
       <div className="mt-auto flex items-center gap-2 pt-5">
         {insights.map((x, k) => (
-          <button key={x.id} onClick={() => setI(k)} aria-label={`Insight ${k + 1}`}
-            className={`h-1.5 rounded-full transition-all ${k === i % insights.length ? 'w-6 bg-brand-500' : 'w-1.5 bg-brand-200 hover:bg-brand-300'}`} />
+          <button key={x.id} onClick={() => setI(k)} aria-label={`Insight ${k + 1}`} className="group grid h-8 place-items-center px-1">
+            <span className={`block h-1.5 rounded-full transition-all ${k === i % insights.length ? 'w-6 bg-brand-solid' : 'w-1.5 bg-brand-200 group-hover:bg-brand-300'}`} />
+          </button>
         ))}
         <button className="btn-ghost btn-sm ml-auto" onClick={() => setI((v) => v + 1)}>Next<ArrowRight className="h-3.5 w-3.5" /></button>
       </div>
@@ -51,10 +56,14 @@ function KeyInsight({ insights }) {
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const { params, filter, ready, version, dataChanged, periods } = useFilters()
+  const { params, filter, ready, version, dataChanged, periods, statements } = useFilters()
   const [range, setRange] = useState('1M')
   const [selected, setSelected] = useState(null)
+  const [tourClosed, setTourClosed] = useState(false)
   const navigate = useNavigate()
+  const onboarding = useApi(ready ? '/onboarding' : null, undefined, [version])
+  const hasStatements = statements.length > 0
+  const updateOnboarding = async (patch) => { await api.patch('/onboarding', patch).catch(() => {}); onboarding.reload() }
   const categories = useCategories([version])
   const { data, loading, error, reload } = useApi(ready ? '/analytics/dashboard' : null, params, [version])
 
@@ -87,8 +96,13 @@ export default function Dashboard() {
         <div className="flex items-center gap-2"><DownloadReportButton params={params} /><PeriodPicker /></div>
       </div>
 
-      {error ? <Card className="card-pad"><ErrorState message={error} onRetry={reload} /></Card> : (
+      {onboarding.data && !onboarding.data.welcome_seen && !tourClosed && (
+        <WelcomeTour firstName={firstName(user?.full_name)} onFinish={() => { setTourClosed(true); updateOnboarding({ welcome_seen: true }) }} />
+      )}
+
+      {ready && !hasStatements ? <NoStatementsYet message="Upload a bank or credit card statement to see your spending, balances and trends here." /> : error ? <Card className="card-pad"><ErrorState message={error} onRetry={reload} /></Card> : (
         <>
+          {onboarding.data?.show_checklist && <GettingStarted onboarding={onboarding.data} onHide={() => updateOnboarding({ checklist_dismissed: true })} />}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <StatCard icon={Wallet} label="Total Income" value={formatINR(t?.total_income)} delta={data?.changes.total_income} goodWhenUp loading={loading && !data} />
             <StatCard icon={Receipt} tone="danger" label="Total Expenses" value={formatINR(t?.total_expenses)} delta={data?.changes.total_expenses} goodWhenUp={false} loading={loading && !data} />
@@ -106,8 +120,8 @@ export default function Dashboard() {
           {empty && !loading ? (
             <Card className="card-pad mt-6">
               <EmptyState icon={CloudUpload} title={`No transactions for ${label}`}
-                message="Upload a bank statement to see your spending, or pick another period with the date selector above."
-                action={<div className="flex flex-wrap justify-center gap-2"><Link to="/upload" className="btn-primary"><CloudUpload className="h-4 w-4" />Upload statement</Link><Link to="/settings" className="btn-secondary">Try demo data</Link></div>} />
+                message="Pick another period with the date selector above, or upload a statement that covers it."
+                action={<Link to="/upload" className="btn-primary"><CloudUpload className="h-4 w-4" />Upload statement</Link>} />
             </Card>
           ) : (
             <>
@@ -120,7 +134,7 @@ export default function Dashboard() {
                 <Card className="card-pad">
                   <CardHeader icon={PieIcon} title="Expenses by Category" subtitle="Click a slice to see its transactions" />
                   {loading && !data ? <LoadingBlock rows={6} /> : data.category_breakdown.length ? (
-                    <CategoryDonut rows={data.category_breakdown} total={t.total_expenses}
+                    <CategoryDonut rows={data.category_breakdown} total={t.total_expenses} height={180}
                       onSelect={(d) => d.category_id && navigate(`/transactions?category_id=${d.category_id}`)} />
                   ) : <EmptyState compact title="No expenses" message="No debit transactions in this period." />}
                 </Card>

@@ -22,7 +22,7 @@ const formatLabel = (b) => FORMAT_LABELS[b.key] || b.bank_name
 const isCard = (b) => b.account_type === 'credit_card'
 
 function Step({ n, label, state }) {
-  const cls = state === 'done' ? 'bg-brand-500 text-white' : state === 'active' ? 'bg-brand-100 text-brand-700 ring-2 ring-brand-300' : 'bg-canvas text-ink-faint ring-1 ring-line'
+  const cls = state === 'done' ? 'bg-brand-solid text-white' : state === 'active' ? 'bg-brand-100 text-brand-700 ring-2 ring-brand-300' : 'bg-canvas text-ink-faint ring-1 ring-line'
   return (
     <div className="flex items-center gap-2">
       <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-bold ${cls}`}>{state === 'done' ? <CheckCircle2 className="h-4 w-4" /> : n}</span>
@@ -153,7 +153,7 @@ export default function Upload() {
               role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()}
               className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition ${
                 drag ? 'border-brand-400 bg-brand-50' : 'border-line bg-canvas/50 hover:border-brand-300 hover:bg-brand-50/40'}`}>
-              <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-white text-brand-500 shadow-card"><CloudUpload className="h-8 w-8" /></div>
+              <div className="mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-surface text-brand-500 shadow-card"><CloudUpload className="h-8 w-8" /></div>
               <p className="text-base font-bold text-ink">Drag & drop your statement here</p>
               <p className="mt-1 text-sm text-ink-muted">or <span className="font-semibold text-brand-600">browse files</span> · CSV, PDF or Excel · up to {MAX_MB} MB</p>
               <input ref={inputRef} type="file" accept={ACCEPT} className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
@@ -167,12 +167,12 @@ export default function Upload() {
                   <p className="text-xs text-ink-muted">{formatBytes(file.size)}</p>
                   {phase !== 'select' && (
                     <div className="mt-2">
-                      <div className="h-1.5 overflow-hidden rounded-full bg-canvas"><div className={`h-full rounded-full bg-brand-500 transition-all ${phase === 'processing' ? 'animate-pulse' : ''}`} style={{ width: `${progress}%` }} /></div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-canvas"><div className={`h-full rounded-full bg-brand-solid transition-all ${phase === 'processing' ? 'animate-pulse' : ''}`} style={{ width: `${progress}%` }} /></div>
                       <p className="mt-1 text-xs text-ink-muted">{phase === 'uploading' ? `Uploading… ${progress}%` : 'Reading statement, detecting bank and categorising…'}</p>
                     </div>
                   )}
                 </div>
-                {phase === 'select' && <button className="rounded-lg p-1.5 text-ink-faint hover:bg-canvas hover:text-ink" onClick={reset} aria-label="Remove file"><X className="h-4 w-4" /></button>}
+                {phase === 'select' && <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-faint hover:bg-canvas hover:text-ink" onClick={reset} aria-label="Remove file"><X className="h-4 w-4" /></button>}
               </div>
             )}
 
@@ -204,7 +204,7 @@ export default function Upload() {
                   <input id="pdf-pw" ref={pwRef} type={showPw ? 'text' : 'password'} className="input pr-11" maxLength={128}
                     autoComplete="off" spellCheck={false} value={password} placeholder="e.g. date of birth or customer ID"
                     onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && password && upload()} />
-                  <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-ink-muted hover:bg-white hover:text-ink" aria-label={showPw ? 'Hide password' : 'Show password'}>
+                  <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-surface hover:text-ink" aria-label={showPw ? 'Hide password' : 'Show password'}>
                     {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>

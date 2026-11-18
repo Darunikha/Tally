@@ -43,7 +43,7 @@ export default function PeriodPicker({ showStatement = true }) {
         <ChevronDown className="h-4 w-4 text-ink-muted" />
       </button>
       {open && (
-        <div role="dialog" aria-label="Choose period" className="absolute right-0 z-40 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-line bg-white p-4 shadow-pop animate-fade-up">
+        <div role="dialog" aria-label="Choose period" className="absolute right-0 z-40 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-line bg-surface p-4 shadow-pop animate-fade-up">
           <Segmented size="sm" value={draft.mode} onChange={(mode) => setDraft((d) => ({ ...d, mode, year: d.year || years[0], month: d.month || now.getMonth() + 1 }))}
             options={[{ value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }, { value: 'all', label: 'All time' }, { value: 'custom', label: 'Custom' }]} />
 
@@ -62,7 +62,7 @@ export default function PeriodPicker({ showStatement = true }) {
                 const data = hasData(i + 1, draft.year)
                 return (
                   <button key={n} onClick={() => setDraft((d) => ({ ...d, month: i + 1 }))}
-                    className={`relative rounded-lg py-2 text-xs font-semibold transition ${active ? 'bg-brand-500 text-white' : data ? 'bg-brand-50 text-brand-700 hover:bg-brand-100' : 'text-ink-faint hover:bg-canvas'}`}
+                    className={`relative rounded-lg py-2 text-xs font-semibold transition ${active ? 'bg-brand-solid text-white' : data ? 'bg-brand-50 text-brand-700 hover:bg-brand-100' : 'text-ink-faint hover:bg-canvas'}`}
                     title={data ? 'Has transactions' : 'No transactions'}>
                     {n.slice(0, 3)}
                   </button>

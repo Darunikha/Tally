@@ -42,7 +42,7 @@ export default function ExportMenu({ params, total }) {
         <ChevronDown className="h-4 w-4 text-ink-muted" />
       </button>
       {open && (
-        <div role="menu" aria-label="Export format" className="absolute right-0 z-40 mt-2 w-72 rounded-2xl border border-line bg-white p-2 shadow-pop animate-fade-up">
+        <div role="menu" aria-label="Export format" className="absolute right-0 z-40 mt-2 w-72 rounded-2xl border border-line bg-surface p-2 shadow-pop animate-fade-up">
           <p className="px-3 pb-1 pt-1.5 text-xs text-ink-muted">
             {total != null ? <>Exports all <b className="text-ink">{total.toLocaleString('en-IN')}</b> transaction{total === 1 ? '' : 's'} matching your filters.</> : 'Exports every transaction matching your filters.'}
           </p>

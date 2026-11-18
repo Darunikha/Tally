@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#F6F6F1" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      /* Apply the saved or device theme before first paint so dark-mode users never see a light flash. Keep in sync with ThemeContext. */
+      try {
+        var t = localStorage.getItem('tally_theme');
+        var dark = t === 'dark' || (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) { document.documentElement.classList.add('dark'); document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0E1411'); }
+      } catch (e) {}
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Tally - smart bank statement and UPI spend analyzer" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

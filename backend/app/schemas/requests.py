@@ -162,3 +162,8 @@ class BudgetUpsert(BaseModel):
 class RecurringIgnore(BaseModel):
     merchant: str = Field(min_length=1, max_length=100)
     ignored: bool = True
+
+
+class OnboardingUpdate(BaseModel):
+    welcome_seen: bool | None = None
+    checklist_dismissed: bool | None = None

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ArrowUpDown, Filter, ListX, Loader2, Search, StickyNote, Tag, X } from 'lucide-react'
 import { api, cleanParams, errorMessage } from '../api/client'
 import ExportMenu from '../components/ExportMenu'
+import NoStatementsYet from '../components/onboarding/NoStatementsYet'
 import TransactionDetail, { MerchantAvatar, useCategories } from '../components/TransactionDetail'
 import { Badge, Card, CategoryPill, EmptyState, ErrorState, LoadingBlock, PageHeader, Pagination, TypeBadge } from '../components/ui'
 import { useFilters } from '../context/FilterContext'
@@ -15,7 +16,7 @@ const FILTER_KEYS = ['search', 'start', 'end', 'category_id', 'type', 'payment_m
 export default function Transactions() {
   const toast = useToast()
   const [sp, setSp] = useSearchParams()
-  const { statements, accounts, version, dataChanged } = useFilters()
+  const { statements, accounts, version, dataChanged, ready } = useFilters()
   const categories = useCategories([version])
   const methods = useApi('/transactions/payment-methods')
   const [selected, setSelected] = useState(null)
@@ -81,6 +82,15 @@ export default function Transactions() {
     f.merchant && ['merchant', `Merchant: ${f.merchant}`],
   ].filter(Boolean)
 
+  if (ready && statements.length === 0) {
+    return (
+      <div className="animate-fade-up">
+        <PageHeader title="Transactions" subtitle="All imported transactions" />
+        <NoStatementsYet message="Upload a statement and every transaction appears here, sorted into categories you can search, filter and export." />
+      </div>
+    )
+  }
+
   return (
     <div className="animate-fade-up">
       <PageHeader title="Transactions" subtitle={data ? `${data.total.toLocaleString('en-IN')} transactions` : 'All imported transactions'}
@@ -101,7 +111,7 @@ export default function Transactions() {
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <button className={`btn-secondary ${activeCount ? 'ring-2 ring-brand-200' : ''}`} onClick={() => setShowFilters((s) => !s)} aria-expanded={showFilters}>
-            <Filter className="h-4 w-4" />More filters{activeCount > 0 && <span className="rounded-full bg-brand-500 px-1.5 text-xs text-white">{activeCount}</span>}
+            <Filter className="h-4 w-4" />More filters{activeCount > 0 && <span className="rounded-full bg-brand-solid px-1.5 text-xs text-white">{activeCount}</span>}
           </button>
         </div>
         {showFilters && (

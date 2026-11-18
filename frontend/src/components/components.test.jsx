@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { foldCategories, SERIES } from './charts'
+import { CategoryDonut, foldCategories, SERIES } from './charts'
 import CardPaymentsNote from './CardPaymentsNote'
 import { ConfirmDialog, Delta, Pagination, SeverityBadge, TypeBadge } from './ui'
 
@@ -96,5 +96,29 @@ describe('CardPaymentsNote', () => {
     rerender(<CardPaymentsNote count={3} />)
     expect(screen.getByRole('note')).toHaveTextContent('3 credit card bill payments are left out')
     expect(screen.getByRole('note')).toHaveTextContent('see them on the Transactions page')
+  })
+})
+
+
+describe('CategoryDonut legend', () => {
+  const rows = [cat('Shopping', 56863, 56), cat('Transportation', 2353, 2.3), cat('Rent', 18000, 17.6)]
+
+  it('gives each category its name, amount and share, with the amount under the name so long names keep their room', () => {
+    render(<CategoryDonut rows={rows} total={77216} />)
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(3)
+    expect(items[0]).toHaveTextContent('Shopping')
+    expect(items[0]).toHaveTextContent('₹56,863')
+    expect(items[0]).toHaveTextContent('56%')
+    const name = within(items[1]).getByText('Transportation')
+    const amount = within(items[1]).getByText('₹2,353')
+    expect(name.parentElement).toBe(amount.parentElement)   // same stacked cell, not competing for one row
+    expect(name).toHaveClass('block')
+  })
+
+  it('shows the total in the middle', () => {
+    render(<CategoryDonut rows={rows} total={77216} />)
+    expect(screen.getByText('₹77,216')).toBeInTheDocument()
+    expect(screen.getByText('Total')).toBeInTheDocument()
   })
 })

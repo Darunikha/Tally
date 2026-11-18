@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, EyeOff, Info, RotateCcw, ShieldCheck, SlidersHorizontal } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
 import PeriodPicker, { periodLabel } from '../components/layout/PeriodPicker'
+import NoStatementsYet from '../components/onboarding/NoStatementsYet'
 import { Badge, Card, EmptyState, ErrorState, LoadingBlock, PageHeader, Segmented, SeverityBadge } from '../components/ui'
 import { useFilters } from '../context/FilterContext'
 import { useToast } from '../context/ToastContext'
@@ -57,7 +58,7 @@ function AnomalyCard({ a, onReview }) {
 
 export default function Anomalies() {
   const toast = useToast()
-  const { params, filter, ready, version, dataChanged } = useFilters()
+  const { params, filter, ready, version, dataChanged, statements } = useFilters()
   const [status, setStatus] = useState('open')
   const [severity, setSeverity] = useState('')
   const { data, loading, error, reload } = useApi(ready ? '/anomalies' : null, { ...params, status: status === 'all' ? '' : status, severity }, [version])
@@ -71,12 +72,21 @@ export default function Anomalies() {
     } catch (e) { toast.error(errorMessage(e)) }
   }
 
+  if (ready && statements.length === 0) {
+    return (
+      <div className="animate-fade-up">
+        <PageHeader title="Anomalies" />
+        <NoStatementsYet message="Upload a statement and Tally will flag unusually large, repeated or out-of-pattern transactions for you to review." />
+      </div>
+    )
+  }
+
   const c = data?.counts
   return (
     <div className="animate-fade-up">
       <PageHeader title="Anomalies" subtitle={`Unusual activity worth a look · ${periodLabel(filter)}`} actions={<PeriodPicker />} />
 
-      <div className="mb-5 flex gap-3 rounded-2xl border border-navy-500/15 bg-[#EEF2F8] p-4 text-sm text-ink-soft">
+      <div className="mb-5 flex gap-3 rounded-2xl border border-navy-500/15 bg-navy-50 p-4 text-sm text-ink-soft">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-navy-500" />
         <p>{data?.disclaimer || 'Anomalies are automated indicators based on your own spending patterns - not a judgement of fraud.'} {' '}
           Detection sensitivity: <b className="capitalize text-ink">{data?.sensitivity || '…'}</b> · <Link to="/settings" className="font-semibold text-brand-600 hover:underline">change</Link></p>

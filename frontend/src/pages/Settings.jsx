@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Database, Download, FileText, KeyRound, Loader2, LogOut, ShieldCheck, Sparkles, User } from 'lucide-react'
+import { AlertTriangle, Database, Download, FileText, KeyRound, Loader2, LogOut, Palette, ShieldCheck, Sparkles, User } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
 import { Card, CardHeader, ConfirmDialog, PageHeader, Segmented } from '../components/ui'
+import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { useFilters } from '../context/FilterContext'
 import { useToast } from '../context/ToastContext'
@@ -10,6 +11,7 @@ import { useApi } from '../hooks/useApi'
 
 export default function SettingsPage() {
   const toast = useToast()
+  const theme = useTheme()
   const { user, setUser, logout, setToken } = useAuth()
   const { dataChanged, version } = useFilters()
   const summary = useApi('/settings/data-summary', null, [version])
@@ -89,6 +91,12 @@ export default function SettingsPage() {
     <div className="animate-fade-up">
       <PageHeader title="Settings" subtitle="Profile, security, detection preferences and your data." />
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <Card className="card-pad xl:col-span-2">
+          <CardHeader icon={Palette} title="Appearance" subtitle="Remembered in this browser only" />
+          <Segmented value={theme.preference} onChange={theme.setPreference}
+            options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'Match device' }]} />
+          <p className="mt-2 text-xs text-ink-muted">"Match device" switches with your phone or computer's day and night setting.</p>
+        </Card>
         <Card className="card-pad">
           <CardHeader icon={User} title="Profile & preferences" />
           <div className="space-y-4">

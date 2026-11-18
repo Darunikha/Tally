@@ -82,10 +82,10 @@ export default function StatementHistory() {
                       <td className="table-td">
                         <div className="flex justify-end gap-1">
                           {s.processing_status === 'completed' && <>
-                            <Link to={`/transactions?upload_id=${s.id}`} className="rounded-lg p-1.5 text-ink-muted hover:bg-canvas hover:text-ink" title="View transactions" aria-label="View transactions"><Eye className="h-4 w-4" /></Link>
+                            <Link to={`/transactions?upload_id=${s.id}`} className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-canvas hover:text-ink" title="View transactions" aria-label="View transactions"><Eye className="h-4 w-4" /></Link>
                             <button onClick={() => viewOnDashboard(s)} className="btn-ghost btn-sm">Dashboard</button>
                           </>}
-                          <button className="rounded-lg p-1.5 text-ink-muted hover:bg-danger-50 hover:text-danger-500" onClick={() => setDel(s)} title="Delete statement" aria-label="Delete statement"><Trash2 className="h-4 w-4" /></button>
+                          <button className="rounded-lg p-1.5 max-sm:p-2.5 text-ink-muted hover:bg-danger-50 hover:text-danger-500" onClick={() => setDel(s)} title="Delete statement" aria-label="Delete statement"><Trash2 className="h-4 w-4" /></button>
                         </div>
                       </td>
                     </tr>

@@ -32,7 +32,7 @@ export function ToastProvider({ children }) {
         {toasts.map((t) => {
           const S = STYLES[t.type]
           return (
-            <div key={t.id} role="status" className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border border-line bg-white px-4 py-3 shadow-pop animate-fade-up">
+            <div key={t.id} role="status" className="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border border-line bg-surface px-4 py-3 shadow-pop animate-fade-up">
               <S.icon className={`mt-0.5 h-5 w-5 shrink-0 ${S.cls}`} />
               <div className="min-w-0 flex-1">
                 {t.title && <p className="text-sm font-semibold text-ink">{t.title}</p>}

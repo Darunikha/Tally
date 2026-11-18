@@ -4,6 +4,7 @@ import { BarChart3, CalendarDays, CalendarRange, Layers, LineChart as LineIcon, 
 import { CategoryDonut, DualLine, IncomeExpenseBars, RankBars, SimpleBars, TrendArea } from '../components/charts'
 import DownloadReportButton from '../components/DownloadReportButton'
 import PeriodPicker, { periodLabel } from '../components/layout/PeriodPicker'
+import NoStatementsYet from '../components/onboarding/NoStatementsYet'
 import { Card, CardHeader, Delta, EmptyState, ErrorState, LoadingBlock, PageHeader, Segmented } from '../components/ui'
 import { useFilters } from '../context/FilterContext'
 import { useApi } from '../hooks/useApi'
@@ -22,13 +23,22 @@ function Kpi({ label, value, prev, change, goodWhenUp }) {
 const chg = (a, b) => (b ? Math.round(((a - b) / Math.abs(b)) * 1000) / 10 : null)
 
 export default function Analytics() {
-  const { params, filter, ready, version } = useFilters()
+  const { params, filter, ready, version, statements } = useFilters()
   const [gran, setGran] = useState('auto')
   const { data, loading, error, reload } = useApi(ready ? '/analytics/overview' : null, { ...params, granularity: gran }, [version])
   const insights = useApi(ready ? '/analytics/insights' : null, params, [version])
   const t = data?.totals
   const p = data?.previous_totals
   const empty = data && t.transaction_count === 0
+
+  if (ready && statements.length === 0) {
+    return (
+      <div className="animate-fade-up">
+        <PageHeader title="Analytics" />
+        <NoStatementsYet message="Upload a statement and this page breaks your spending down by category, merchant, weekday and more." />
+      </div>
+    )
+  }
 
   return (
     <div className="animate-fade-up">
@@ -116,11 +126,11 @@ export default function Analytics() {
             </Card>
             <Card className="card-pad">
               <CardHeader icon={BarChart3} title="Transaction size distribution" subtitle="Number of debits by amount" />
-              {!data ? <LoadingBlock rows={6} /> : <SimpleBars data={data.distribution.map((d) => ({ label: d.range, amount: d.count }))} name="Debits" color="#3D5A80" valueFormatter={(v) => v} />}
+              {!data ? <LoadingBlock rows={6} /> : <SimpleBars data={data.distribution.map((d) => ({ label: d.range, amount: d.count }))} name="Debits" color="expense" valueFormatter={(v) => v} />}
             </Card>
             <Card className="card-pad">
               <CardHeader icon={Wallet} title="Payment methods" />
-              {!data ? <LoadingBlock rows={6} /> : <RankBars rows={data.payment_methods} labelKey="method" valueKey="amount" color="#3D5A80" sub={(r) => `${r.count} debits`} />}
+              {!data ? <LoadingBlock rows={6} /> : <RankBars rows={data.payment_methods} labelKey="method" valueKey="amount" color="expense" sub={(r) => `${r.count} debits`} />}
             </Card>
           </div>
 

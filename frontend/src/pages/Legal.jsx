@@ -22,8 +22,8 @@ function LegalLayout({ title, intro, sections }) {
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6">
           <Link to={user ? '/' : '/login'}><Logo className="[&_span]:text-lg [&_svg]:h-7 [&_svg]:w-7" /></Link>
           <nav className="flex gap-1 text-sm font-semibold">
-            <Link to="/privacy" className="rounded-lg px-3 py-1.5 text-ink-soft hover:bg-white">Privacy</Link>
-            <Link to="/terms" className="rounded-lg px-3 py-1.5 text-ink-soft hover:bg-white">Terms</Link>
+            <Link to="/privacy" className="rounded-lg px-3 py-1.5 text-ink-soft hover:bg-surface">Privacy</Link>
+            <Link to="/terms" className="rounded-lg px-3 py-1.5 text-ink-soft hover:bg-surface">Terms</Link>
           </nav>
         </div>
       </header>
@@ -35,7 +35,7 @@ function LegalLayout({ title, intro, sections }) {
           <div role="note" className="mb-6 flex gap-3 rounded-2xl border border-warn-100 bg-warn-50 p-4 text-sm text-ink-soft">
             <AlertTriangle className="h-5 w-5 shrink-0 text-warn-500" />
             <p><b className="text-ink">Template - not yet finalised.</b> The operator's details in square brackets must be filled in
-              (<code className="rounded bg-white px-1">frontend/src/legal/config.js</code>) and the text reviewed by a qualified lawyer before
+              (<code className="rounded bg-surface px-1">frontend/src/legal/config.js</code>) and the text reviewed by a qualified lawyer before
               this service is offered to the public.</p>
           </div>
         )}

@@ -4,9 +4,9 @@ import { Badge, Card, CardHeader, LoadingBlock } from './ui'
 import { formatINR } from '../lib/format'
 
 export const STATUS = {
-  ok: { label: 'On track', tone: 'brand', bar: 'bg-brand-500' },
+  ok: { label: 'On track', tone: 'brand', bar: 'bg-brand-solid' },
   warning: { label: 'Nearly there', tone: 'warn', bar: 'bg-warn-500' },
-  over: { label: 'Over budget', tone: 'danger', bar: 'bg-danger-500' },
+  over: { label: 'Over budget', tone: 'danger', bar: 'bg-danger-solid' },
 }
 
 /** Words, not just colour, say how a budget is going. */
