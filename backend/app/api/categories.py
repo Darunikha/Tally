@@ -7,7 +7,9 @@ from app.categorization.engine import InvalidRuleError, validate_pattern
 from app.core.errors import AppError
 from app.database.mongo import BUDGETS, CATEGORIES, CATEGORIZATION_RULES, RAW_TRANSACTIONS
 from app.models.documents import category_doc, rule_doc
-from app.schemas.requests import CategoryCreate, CategoryUpdate, RuleCreate, RuleTest, RuleUpdate
+from app.schemas.requests import (CategoryCreate, CategoryUpdate, DismissSuggestion, LearnRule, RuleCreate, RuleTest,
+                                  RuleUpdate)
+from app.services import learning
 from app.services.categories import other_category_id, recategorize_all
 from app.services.query import oid
 from app.services.summaries import refresh_summaries
@@ -170,6 +172,29 @@ async def test_rule(body: RuleTest, user=Depends(current_user), db=Depends(db_de
             if len(matches) < 20:
                 matches.append(to_json(t))
     return {"match_count": total, "examples": matches}
+
+
+@router.post("/rules/learn")
+async def learn_rule(body: LearnRule, user=Depends(current_user), db=Depends(db_dep)):
+    """Make a rule that files one merchant under a category, then re-sort the transactions it now covers."""
+    return await learning.learn_rule(db, user["_id"], body.merchant, body.category_id, body.applies_to)
+
+
+@router.get("/categories/suggestions")
+async def rule_suggestions(user=Depends(current_user), db=Depends(db_dep)):
+    """Merchants you keep moving to the same category, offered as rules."""
+    return await learning.suggestions(db, user["_id"])
+
+
+@router.post("/categories/suggestions/dismiss", status_code=204)
+async def dismiss_suggestion(body: DismissSuggestion, user=Depends(current_user), db=Depends(db_dep)):
+    await learning.dismiss(db, user["_id"], body.merchant, body.category_id)
+
+
+@router.get("/categories/uncategorised")
+async def uncategorised(user=Depends(current_user), db=Depends(db_dep)):
+    """Payees Tally could not categorise, grouped by merchant."""
+    return await learning.uncategorised_merchants(db, user["_id"])
 
 
 @router.post("/rules/apply")

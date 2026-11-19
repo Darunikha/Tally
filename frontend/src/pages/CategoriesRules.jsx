@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Beaker, Loader2, Pencil, Play, Plus, Tags, Trash2, Wand2 } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
 import { Badge, Card, ConfirmDialog, EmptyState, ErrorState, InfoTip, LoadingBlock, Modal, PageHeader, Segmented } from '../components/ui'
+import { SuggestedRules, UncategorisedMerchants } from '../components/learning/LearningPanels'
 import { useFilters } from '../context/FilterContext'
 import { useToast } from '../context/ToastContext'
 import { useApi } from '../hooks/useApi'
@@ -107,7 +108,7 @@ function Toggle({ checked, onChange, label }) {
 
 export default function CategoriesRules() {
   const toast = useToast()
-  const { dataChanged } = useFilters()
+  const { dataChanged, version } = useFilters()
   const [tab, setTab] = useState('categories')
   const cats = useApi('/categories')
   const rules = useApi('/rules')
@@ -158,6 +159,13 @@ export default function CategoriesRules() {
         </>} />
 
       <div className="mb-5"><Segmented value={tab} onChange={setTab} options={[{ value: 'categories', label: `Categories${cats.data ? ` (${cats.data.length})` : ''}` }, { value: 'rules', label: `Rules${rules.data ? ` (${rules.data.length})` : ''}` }]} /></div>
+
+      {tab === 'categories' && (
+        <>
+          <SuggestedRules version={version} onChanged={() => { refresh(); dataChanged() }} />
+          <UncategorisedMerchants categories={cats.data} version={version} onChanged={() => { refresh(); dataChanged() }} />
+        </>
+      )}
 
       {tab === 'categories' ? (
         cats.error ? <Card className="card-pad"><ErrorState message={cats.error} onRetry={cats.reload} /></Card> : !cats.data ? <Card className="card-pad"><LoadingBlock rows={6} /></Card> : (

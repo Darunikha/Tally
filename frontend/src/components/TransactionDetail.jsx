@@ -3,6 +3,7 @@ import { Loader2, RotateCcw } from 'lucide-react'
 import { api, errorMessage } from '../api/client'
 import { useToast } from '../context/ToastContext'
 import { formatDate, formatDateTime, formatINR } from '../lib/format'
+import LearnRulePrompt from './learning/LearnRulePrompt'
 import { Badge, CategoryPill, Modal, TypeBadge } from './ui'
 
 export function MerchantAvatar({ name, color, size = 'md' }) {
@@ -26,6 +27,7 @@ const SOURCE_LABEL = { rule: 'Default rule', custom_rule: 'Your rule', manual: '
 
 export default function TransactionDetail({ txn, categories, onClose, onSaved }) {
   const toast = useToast()
+  const [offer, setOffer] = useState(null) // a rule Tally offers to make after a category correction
   const [categoryId, setCategoryId] = useState('')
   const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
@@ -36,10 +38,12 @@ export default function TransactionDetail({ txn, categories, onClose, onSaved })
     setCategoryId(txn.category_id || '')
     setNotes(txn.notes || '')
     setFull(null)
+    setOffer(null)
     api.get(`/transactions/${txn.id}`).then((r) => setFull(r.data)).catch(() => {})
   }, [txn])
 
   if (!txn) return null
+  if (offer) return <LearnRulePrompt offer={offer} onDone={() => onSaved?.()} onClose={() => { setOffer(null); onClose() }} />
   const t = full || txn
 
   const save = async (body) => {
@@ -48,7 +52,8 @@ export default function TransactionDetail({ txn, categories, onClose, onSaved })
       const r = await api.patch(`/transactions/${txn.id}`, body)
       toast.success('Transaction updated')
       onSaved?.(r.data)
-      onClose()
+      if (r.data.suggestion) setOffer(r.data.suggestion)
+      else onClose()
     } catch (e) { toast.error(errorMessage(e)) } finally { setBusy(false) }
   }
 
@@ -101,7 +106,7 @@ export default function TransactionDetail({ txn, categories, onClose, onSaved })
           <select id="td-cat" className="select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <p className="mt-1.5 text-xs text-ink-muted">Manual changes always take priority over rules.</p>
+          <p className="mt-1.5 text-xs text-ink-muted">Manual changes always take priority over rules. Tally will offer to remember a correction as a rule.</p>
         </div>
         <div>
           <label className="label" htmlFor="td-notes">Notes</label>

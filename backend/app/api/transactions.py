@@ -7,6 +7,7 @@ from app.core.ratelimit import limit as rate_limit
 from app.database.mongo import ACCOUNTS, CATEGORIES, RAW_TRANSACTIONS, STATEMENT_UPLOADS
 from app.schemas.requests import BulkCategoryUpdate, TransactionUpdate
 from app.services.categories import load_engine
+from app.services import learning
 from app.services.exports import MAX_EXPORT_ROWS, build_csv, build_xlsx, export_row
 from app.services.query import build_filter, category_map, oid, resolve_period
 from app.services.summaries import refresh_summaries
@@ -152,6 +153,7 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, user=Depends(
         raise AppError("Transaction not found", 404, "not_found")
     update: dict = {"updated_at": utcnow()}
     category_changed = False
+    category = None
     if body.notes is not None:
         update["notes"] = body.notes.strip()
     if body.reset_category:
@@ -164,7 +166,8 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, user=Depends(
         category_changed = True
     elif body.category_id is not None:
         cid = oid(body.category_id, "category id")
-        if not await db[CATEGORIES].find_one({"_id": cid, "user_id": user["_id"]}):
+        category = await db[CATEGORIES].find_one({"_id": cid, "user_id": user["_id"]})
+        if not category:
             raise AppError("Category not found", 404, "not_found")
         update.update({"category_id": cid, "manual_override": True, "categorization_source": "manual",
                        "matched_rule_id": None, "needs_review": False})
@@ -172,8 +175,13 @@ async def update_transaction(txn_id: str, body: TransactionUpdate, user=Depends(
     await db[RAW_TRANSACTIONS].update_one({"_id": t["_id"]}, {"$set": update})
     if category_changed:
         await refresh_summaries(db, user["_id"])
+    before_category = t.get("category_id")
     t = await db[RAW_TRANSACTIONS].find_one({"_id": t["_id"]})
-    return _decorate(t, await category_map(db, user["_id"]))
+    out = _decorate(t, await category_map(db, user["_id"]))
+    # offer to remember a real correction as a rule (never when nothing changed, or for a reset to the rules' choice)
+    if category is not None and category["_id"] != before_category:
+        out["suggestion"] = await learning.suggestion_after_correction(db, user["_id"], t, category)
+    return out
 
 
 @router.post("/bulk-category")

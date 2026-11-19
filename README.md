@@ -58,8 +58,8 @@ set `VITE_API_URL` at build time and add that origin to `CORS_ORIGINS` in the ba
 ### 3. Tests
 
 ```bash
-cd backend && python -m pytest        # 341 backend tests
-cd frontend && npm test               # 203 frontend tests (Vitest + React Testing Library)
+cd backend && python -m pytest        # 392 backend tests
+cd frontend && npm test               # 229 frontend tests (Vitest + React Testing Library)
 cd frontend && npm run coverage       # frontend coverage report → frontend/coverage/
 ```
 
@@ -74,6 +74,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Exports: CSV and Excel contents, formula-injection safety, filters, limits, privacy, and the PDF report (checked against the dashboard's numbers)
 * Accounts: creating and filing statements, balances, per-account filtering that adds up to the combined totals, moving statements, automatic setup
 * Onboarding: the checklist's steps follow real data, welcome and dismissal are remembered, and nothing is shown to people who already have data
+* Learning: rule patterns that can't be widened or fooled, when a rule is (and isn't) offered, manual choices never overridden, and suggestions from repeated corrections
 * Auth security: password reset, email verification, session revocation, rate limits and data export
 
 **Frontend.** These tests cover:
@@ -89,6 +90,7 @@ cd frontend && npm run coverage       # frontend coverage report → frontend/co
 * Accounts: the Accounts page, choosing or creating an account while importing, moving statements, and the account filter
 * Theme: light, dark and match-device, remembered in the browser; the chart colours that change with it
 * First run: the welcome tour, the getting-started checklist, and the same "add your first statement" prompt on every analysis page
+* Learning: the "remember this?" prompt, suggested rules, and sorting a whole merchant at once
 
 The API is mocked, so frontend tests need no running server.
 
@@ -142,6 +144,7 @@ backend/
     (services/exports.py    CSV and Excel export, services/report_pdf.py PDF report)
     (services/accounts.py   accounts: filing statements, balances, setup)
     (api/onboarding.py      first-run checklist progress)
+    (services/learning.py   rules learned from your corrections)
     services/               file validation, normalization/dedupe, import pipeline, summaries, queries
     utils/                  UPI extraction, merchant normalization, payment methods, IST dates, money
     api/                    auth, statements, transactions, categories+rules, accounts, budgets, recurring, reports, analytics+UPI, anomalies, settings
@@ -157,6 +160,7 @@ frontend/src/
                             Accounts, Budgets, Recurring, Statement History, Settings, Login/Register
   context/ThemeContext.jsx  light / dark / match-device
   components/onboarding/    welcome tour, getting-started checklist, no-data prompt, demo-data button
+  components/learning/      the "remember this?" prompt and the suggested-rules / needs-a-category lists
 ```
 
 ---
@@ -237,6 +241,15 @@ For each transaction it extracts the VPA, the 12-digit RRN, the flow (P2M/P2A) a
 Merchant aliases group variants together, so `SWIGGY*ORDER123`, `UPI-SWIGGY`, `SWIGGY INDIA` and
 `swiggy@icici` all become **Swiggy**.
 
+### Learning from your corrections
+Tally gets better at sorting your transactions as you correct it, but never silently: a rule is only created when you say yes, and it appears in **Categories & Rules** like any other rule, where you can edit, switch off or delete it.
+
+* **Remember this?** When you move a transaction to another category, Tally offers to always file that merchant there. It says how many other transactions would move, and whether the rule applies to payments, money received, or both. Say yes and those transactions are re-sorted and future statements follow the rule.
+* **Tally noticed a pattern.** If you keep moving the same merchant to the same category (twice or more), it shows up on the Categories page as a suggested rule. "Not now" hides that suggestion; moving the merchant somewhere else later is a new suggestion. Tally won't guess if you have moved a merchant to two places equally often.
+* **Needs a category.** Merchants Tally could not place are grouped, so one choice sorts every transaction from that merchant and is remembered for the next statement.
+* **Your word always wins.** A transaction you set by hand is never moved by a rule. A learned rule matches the merchant name exactly, so "Swiggy" doesn't catch "Swiggy Instamart" and a word in someone else's description never matches. Its priority is above every built-in rule, so what you teach beats the defaults.
+* No rule is offered when the built-in rules already agree with you, or for a payee Tally could not read ("Unknown"), since that rule would catch unrelated payments.
+
 ### Anomalies
 These are indicators for review, never fraud verdicts. Every baseline comes from your own history:
 
@@ -316,7 +329,7 @@ A merchant is recurring when you pay it on a steady schedule **and** a steady am
 
 ### Data model (MongoDB)
 `users`, `statement_uploads`, `raw_transactions`, `staged_transactions` (preview area), `categories`,
-`categorization_rules`, `accounts` (your bank accounts and cards; statements and transactions carry the account they belong to),
+`categorization_rules`, `learning_dismissed` (suggested rules you said no to), `accounts` (your bank accounts and cards; statements and transactions carry the account they belong to),
 `budgets` (one per user and category; no category means the overall budget),
 `recurring_ignored` (merchants you marked as not recurring),
 `spending_summaries` (cached monthly roll-ups, always rebuildable) and `anomaly_reviews`.

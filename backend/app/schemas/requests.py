@@ -167,3 +167,14 @@ class RecurringIgnore(BaseModel):
 class OnboardingUpdate(BaseModel):
     welcome_seen: bool | None = None
     checklist_dismissed: bool | None = None
+
+
+class LearnRule(BaseModel):
+    merchant: str = Field(min_length=1, max_length=120)
+    category_id: str
+    applies_to: Literal["debit", "credit", "any"] = "any"
+
+
+class DismissSuggestion(BaseModel):
+    merchant: str = Field(min_length=1, max_length=120)
+    category_id: str

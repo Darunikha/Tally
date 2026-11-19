@@ -20,6 +20,7 @@ RATE_LIMITS = "rate_limits"
 AUTH_TOKENS = "auth_tokens"  # password reset / email verification (hashed)
 BUDGETS = "budgets"
 RECURRING_IGNORED = "recurring_ignored"  # merchants the user marked "not recurring"
+LEARNING_DISMISSED = "learning_dismissed"  # suggested rules the user said no to
 ACCOUNTS = "accounts"  # a bank account or credit card that statements are filed under
 
 _client = None
@@ -91,6 +92,7 @@ async def ensure_indexes(db) -> None:
     await db[ANOMALY_REVIEWS].create_index([("user_id", ASCENDING), ("anomaly_key", ASCENDING)], unique=True)
     # one budget per category per user; category_id None is the single "overall" budget
     await db[BUDGETS].create_index([("user_id", ASCENDING), ("category_id", ASCENDING)], unique=True)
+    await db[LEARNING_DISMISSED].create_index([("user_id", ASCENDING), ("merchant", ASCENDING), ("category_id", ASCENDING)], unique=True)
     await db[ACCOUNTS].create_index([("user_id", ASCENDING), ("name_key", ASCENDING)], unique=True)
     await db[RECURRING_IGNORED].create_index([("user_id", ASCENDING), ("merchant", ASCENDING)], unique=True)
     # TTL indexes: MongoDB deletes these documents automatically once expires_at passes
